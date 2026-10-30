@@ -49,26 +49,29 @@ File: `server/ultra.py`
 - Added hardware exception types.
 - Added a first low-level `MotorController` wrapper preserving the `server/move.py` logic.
 - Added a top-level `RaspTank` façade for interactive use.
+- Added a `ServoController` wrapper around the original PCA9685 behavior.
+- Added an `UltrasonicSensor` wrapper around the original timing-based distance logic.
+- Added mock-based unit tests for the initial motor and servo abstraction layers.
 
-### Review and hostile critique
+### Review and critique
 Static review performed on the code created so far:
-- Importing the package on a non-Raspberry-Pi environment will fail because `RPi.GPIO` is imported at module load time.
-- The `MotorController.close()` path was too aggressive because it always calls `GPIO.cleanup()` without a guard or a clear runtime error path.
-- The package was not yet fully consistent because some expected files were missing earlier during the initial rapid patch sequence.
-- The docs package and guide were not present yet, which reduces accessibility for beginners.
+- Importing the package on a non-Raspberry-Pi environment will fail because `RPi.GPIO` and `Adafruit_PCA9685` are imported at module load time.
+- The cleanup code needs to be explicit and defensive to avoid overly aggressive GPIO cleanup.
+- The public facade should remain intentionally simple; broad abstraction would hide the real hardware behavior.
+- Documentation needs to explain the actual hardware mapping and refactor choices for learners.
 
 ### Corrective actions taken
-- Re-create the missing package files explicitly.
-- Keep compatibility and runtime safety in mind.
-- Preserve original GPIO behavior while keeping the API simple.
-- Add beginner-friendly documentation in the repository.
+- Preserved original GPIO and PWM logic instead of replacing it with speculation.
+- Kept the wrappers thin and explicit rather than over-engineering them.
+- Emphasized beginner-friendly explanations in the HTML guide and memory notes.
+- Used mock-based testing to validate early refactor steps without real hardware.
 
 ## Action Plan
 1. Keep the motor abstraction as the safe baseline.
-2. Add servo abstraction next with explicit ranges and documentation.
-3. Add ultrasonic and simple sensor wrappers.
-4. Add the central `RaspTank` object and a simple context-manager lifecycle.
-5. Add learner-friendly docs and notebook examples.
+2. Keep the servo abstraction tied to the original PCA9685 ranges and behavior.
+3. Keep the ultrasonic sensor behavior true to the original pulse timing logic.
+4. Add the remaining optional wrappers for LEDs, OLED, IMU, and camera gradually.
+5. Build a clearer user-facing documentation layer around the object model.
 6. Validate with mocked/unit-test style checks and static review.
 
 ## Important Policy for This Work
@@ -78,5 +81,5 @@ Static review performed on the code created so far:
 - Keep the human-readable explanation accessible to young learners.
 
 ---
-Project memory version: 2
+Project memory version: 3
 Updated: 2026-10-30
