@@ -1,85 +1,78 @@
 # Adeept RaspTank Pro — Durable Memory and Working Notes
 
-This file is a durable memory record for the assistant working on the Adeept RaspTank Pro project.
-It captures project goals, design decisions, architecture findings, and working notes.
+Updated: 2026-10-31
 
-## Project Goal
-Transform the repository from a script-heavy, client/server robot project into a cleaner, more Pythonic robotics library centered around a single `RaspTank` object while preserving the actual Raspberry Pi hardware behavior.
+## Implemented code
 
-## Repository Context
-- Repository: `adeept/Adeept_RaspTankPro`
-- Fork: `bps77/Adeept_RaspTankPro`
-- Working branch: `refactor-rasptank-core`
+The `rasptank` package implements synchronous motors, servos, ultrasonic, LED
+and two-line OLED wrappers plus a `RaspTank` façade. `config.py` contains
+explicit legacy wiring/ranges and `exceptions.py` defines lifecycle/hardware
+failures. It is not a replacement for every legacy server feature.
 
-## Actual Hardware Behavior Understood So Far
-### Motors
-File: `server/move.py`
-- BCM pins: `4`, `17`, `26`, `21`, `27`, `18`
-- Movement logic is centralized in `move(speed, direction, turn, radius)`
-- `motorStop()` is the correct shutdown behavior during emergency or cleanup events
+* Imports do not load hardware drivers or open devices; drivers load only when
+  enabled controllers are constructed or motor/sensor `setup()` is explicit.
+* `use_gpio=False` disables all hardware access, including I2C and LEDs.
+  Dry-run sensor reads raise instead of inventing data.
+* Motor mapping and movement direction/turn decisions follow `server/move.py`.
+  Both PWM outputs start once at zero duty. Driving turns stop the inner track;
+  radius is validated but does not implement curved-drive behavior.
+* Servo channels 0..4 retain `server/servo.py` ranges/direction flags. The
+  PCA9685 address/bus/frequency follow `server/RPIservo.py`: 0x40/1/50 Hz.
+  No servo channel is commanded at construction; pulse/relative/center
+  operations are explicit. Close releases only commanded channels.
+* Ultrasonic uses BCM 11/8, monotonic deadlines on both echo waits, and metres
+  rounded to two decimals with the legacy 340 m/s constant.
+* LEDs show one synchronous frame; OLED shows two lines, not the legacy
+  six-line background thread. Optional façade devices are opt-in.
+* Cleanup is scoped, idempotent and best-effort. GPIO cleanup never uses the
+  global form; acquired PWM instances are stopped. Closed controllers reject
+  commands. The façade rolls back partial creation and closes every owned
+  resource; injected controllers are borrowed and remain caller-owned.
 
-### Servos
-Files: `server/servo.py`, `server/RPIservo.py`
-- PCA9685 at 50Hz is used for servo motion
-- servo values are not arbitrary floating values; they are hardware pulse values and direction-sensitive
+## Runtime state versus persistence
 
-### Ultrasonic Sensor
-File: `server/ultra.py`
-- Trigger: BCM 11
-- Echo: BCM 8
-- Distance is calculated by pulse timing
+Servo positions begin as assumed 300-tick values, not physical measurements.
+Positions, transient initial calibration, LED color and OLED text belong to
+each instance. `calibrate()` changes an in-memory initial pulse only and
+`center()` is an explicit movement, not constructor behavior.
 
-### LED, OLED, Switch, IMU
-- LED strip uses GPIO 12 and `rpi_ws281x`
-- OLED uses I2C at `0x3C`
-- switches use BCM 5, 6, 13
-- IMU is an MPU6050 at `0x68`
+The new API does not load, rewrite or create calibration files. Legacy
+calibration/source persistence remains in the unchanged `server/` path;
+it is separate from these transient controllers. Do not infer physical servo
+position from symbolic state or expect calibration to survive a restart.
 
-## Refactor Principles
-1. Preserve working behavior over architectural elegance.
-2. Treat the existing code as the hardware specification.
-3. Prefer explicit Python APIs over hidden background behavior.
-4. Keep hardware details understandable for learners.
-5. Keep compatibility paths when legacy code remains useful.
-6. Make cleanup and safety explicit.
+## Legacy compatibility and scope
 
-## Progress Notes
-### Current state
-- Added the `rasptank` package root and config constants.
-- Added hardware exception types.
-- Added a first low-level `MotorController` wrapper preserving the `server/move.py` logic.
-- Added a top-level `RaspTank` façade for interactive use.
-- Added a `ServoController` wrapper around the original PCA9685 behavior.
-- Added an `UltrasonicSensor` wrapper around the original timing-based distance logic.
-- Added mock-based unit tests for the initial motor and servo abstraction layers.
+Legacy server scripts remain unchanged by the core refactor. Prior removal
+of automatic fetch/reset/pull/reboot updates remains in place; Wi-Fi/AP
+fallback is unchanged. Fork detachment is an owner/GitHub operation.
 
-### Review and critique
-Static review performed on the code created so far:
-- Importing the package on a non-Raspberry-Pi environment will fail because `RPi.GPIO` and `Adafruit_PCA9685` are imported at module load time.
-- The cleanup code needs to be explicit and defensive to avoid overly aggressive GPIO cleanup.
-- The public facade should remain intentionally simple; broad abstraction would hide the real hardware behavior.
-- Documentation needs to explain the actual hardware mapping and refactor choices for learners.
+IMU, switches, camera, radar scans, servo threads, web-server control and
+persistent calibration are not implemented by the new façade. Never run
+legacy scripts concurrently with new controllers that own the same hardware.
 
-### Corrective actions taken
-- Preserved original GPIO and PWM logic instead of replacing it with speculation.
-- Kept the wrappers thin and explicit rather than over-engineering them.
-- Emphasized beginner-friendly explanations in the HTML guide and memory notes.
-- Used mock-based testing to validate early refactor steps without real hardware.
+## Validation and remaining physical work
 
-## Action Plan
-1. Keep the motor abstraction as the safe baseline.
-2. Keep the servo abstraction tied to the original PCA9685 ranges and behavior.
-3. Keep the ultrasonic sensor behavior true to the original pulse timing logic.
-4. Add the remaining optional wrappers for LEDs, OLED, IMU, and camera gradually.
-5. Build a clearer user-facing documentation layer around the object model.
-6. Validate with mocked/unit-test style checks and static review.
+Mock-based `unittest` checks cover exact pin/PWM/direction behavior, ranges,
+disabled operation, lazy imports, echo deadlines, ownership, partial
+initialization and cleanup failure handling. Both existing notebooks are
+valid JSON/Python and default to hardware-independent discovery/symbolic
+checks. Hardware actions require disabled-by-default opt-in flags and
+`finally` cleanup.
 
-## Important Policy for This Work
-- Do not break actual robot behavior.
-- Do not rewrite the repo in one pass.
-- Document the reasoning and the decisions.
-- Keep the human-readable explanation accessible to young learners.
+No physical Raspberry Pi, motor, servo, sensor, LED or OLED tests have been
+performed. Mock/static success does not establish wiring, electrical safety,
+physical direction, pulse calibration or timing accuracy. README documents
+manual stand-supported tests and a physical emergency power cutoff.
 
----
-Project memory version: 3
-Updated: 2026-10-30
+## Durable conventions
+
+1. Treat legacy hardware code as the wiring specification, not architectural
+   speculation; distinguish deliberate safety corrections from equivalence.
+2. Keep controllers synchronous, imports inert, optional devices explicit,
+   and shared hardware ownership unambiguous.
+3. Validate commands before output; clean up only acquired resources, attempt
+   every resource on failure, and preserve the original initialization error.
+4. Keep calibration transient unless persistence is separately requested.
+5. Use existing standard-library unittest mocks and notebook JSON/AST checks;
+   never imply physical validation from software-only results.

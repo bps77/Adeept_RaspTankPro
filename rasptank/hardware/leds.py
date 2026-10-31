@@ -1,65 +1,74 @@
-"""LED wrapper for the Adeept RaspTank Pro.
+"""Single-frame synchronous LED strip updates; no animations or threads."""
 
-This module preserves the original LED strip behavior from `server/LED.py` while
-offering a simpler Python interface for novice learners and interactive experiments.
-"""
+from importlib import import_module
 
-from __future__ import annotations
-
-try:
-    from rpi_ws281x import Adafruit_NeoPixel, Color
-except ImportError:  # pragma: no cover - used in mocked/test environments
-    Adafruit_NeoPixel = None
-    Color = None
+from ..exceptions import HardwareError
+from ._lifecycle import ManagedController, ensure_open, release
 
 
-class LEDStrip:
-    """Wrap the original robot LED behavior.
-
-    The original code uses a WS2812 LED strip connected to GPIO 12. This class
-    keeps the same configuration and adds a friendlier, more explicit API.
-    """
-
-    def __init__(self, count: int = 16, pin: int = 12):
+class LEDStrip(ManagedController):
+    def __init__(self, count=16, pin=12, *, use_gpio=True, strip=None, color=None):
+        if type(count) is not int or count <= 0:
+            raise ValueError("count must be a positive integer")
         self.count = count
         self.pin = pin
-        self.strip = self._build_strip()
+        self.use_gpio = use_gpio
+        self.strip = strip
+        self._color = color
+        self._closed = False
+        self.color = (0, 0, 0)
+        if use_gpio:
+            try:
+                if self.strip is None or self._color is None:
+                    module = import_module("rpi_ws281x")
+                    if self.strip is None:
+                        self.strip = module.Adafruit_NeoPixel(count, pin, 800000, 10, False, 255, 0)
+                    if self._color is None:
+                        self._color = module.Color
+                self.strip.begin()
+            except BaseException as exc:
+                try:
+                    self.close()
+                except BaseException:
+                    pass
+                if not isinstance(exc, Exception):
+                    raise
+                raise HardwareError("Unable to initialize LED strip") from exc
 
-    def _build_strip(self):
-        if Adafruit_NeoPixel is None:
-            raise RuntimeError("rpi_ws281x is not installed.")
+    def _write(self, rgb):
+        if self.use_gpio and self.strip is not None and self._color is not None:
+            color = self._color(*rgb)
+            for i in range(self.strip.numPixels()):
+                self.strip.setPixelColor(i, color)
+            self.strip.show()
 
-        strip = Adafruit_NeoPixel(
-            self.count,
-            self.pin,
-            800000,
-            10,
-            False,
-            255,
-            0,
-        )
-        strip.begin()
-        return strip
+    def color_wipe(self, red, green, blue):
+        """Set all pixels, then show once (not the legacy per-pixel animation)."""
+        ensure_open(self)
+        rgb = (red, green, blue)
+        if any(type(value) is not int or not 0 <= value <= 255 for value in rgb):
+            raise ValueError("RGB values must be integers from 0 to 255")
+        try:
+            self._write(rgb)
+        except Exception as exc:
+            try:
+                self.close()
+            except BaseException:
+                pass
+            raise HardwareError("LED output failed") from exc
+        self.color = rgb
 
-    def color_wipe(self, red: int, green: int, blue: int) -> None:
-        """Set the whole LED strip to a single color."""
-        if Color is None:
-            raise RuntimeError("LED color support is not available in this environment.")
-
-        color = Color(red, green, blue)
-        for i in range(self.strip.numPixels()):
-            self.strip.setPixelColor(i, color)
-        self.strip.show()
-
-    def off(self) -> None:
-        """Turn all LEDs off."""
+    def off(self):
         self.color_wipe(0, 0, 0)
 
-    def close(self) -> None:
-        """Shut the LED strip down cleanly."""
-        self.off()
-
-
-if __name__ == "__main__":
-    strip = LEDStrip()
-    strip.color_wipe(255, 0, 0)
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        actions = [lambda: self._write((0, 0, 0))]
+        # rpi_ws281x versions exposing native release use _cleanup().
+        cleanup = getattr(self.strip, "_cleanup", None) if self.use_gpio else None
+        if callable(cleanup):
+            actions.append(cleanup)
+        release(actions)
+        self.color = (0, 0, 0)
