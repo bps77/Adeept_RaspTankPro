@@ -234,6 +234,60 @@ stop latency depends on Python scheduling and bounded GPIO operations.
 **Process/OS failure or a hung GPIO call can defeat software supervision.**
 Keep a physical cutoff; never leave the tank roaming unattended.
 
+## Troubleshooting: "Camera(s) not found"
+
+If `camera.start()` reports `libcamera detected no camera` (Picamera2 logs
+`Camera(s) not found` / `Camera __init__ sequence did not complete`), libcamera
+enumerated zero cameras. The tank code has not touched the camera yet; fix the
+Pi first. Close the notebook camera cell, then in a Pi terminal:
+
+```sh
+libcamera-hello --list-cameras      # Bullseye; Bookworm: rpicam-hello --list-cameras
+vcgencmd get_camera                 # legacy stack status; detected=0 confirms no sensor
+CONFIG=/boot/config.txt; [ -f /boot/firmware/config.txt ] && CONFIG=/boot/firmware/config.txt
+grep -nE '^\s*(start_x|camera_auto_detect|dtoverlay|gpu_mem)' "$CONFIG"
+dmesg | grep -iE 'ov5647|imx219|imx477|imx708|unicam|cfe'
+```
+
+Fix according to what you find, then reboot:
+
+1. **Legacy camera enabled** (`start_x=1`, or raspi-config shows Legacy Camera
+   enabled). Older Adeept instructions enabled it; libcamera/Picamera2 cannot
+   use the camera then. Run `sudo raspi-config` -> Interface Options ->
+   Legacy Camera -> **Disable**, or comment out `start_x=1`.
+2. **Auto-detect off**: ensure `camera_auto_detect=1` under `[all]`.
+3. **Auto-detect does not find a third-party module** (common with OV5647
+   "Pi Camera v1"-compatible boards): set `camera_auto_detect=0` and add the
+   matching overlay, e.g. `dtoverlay=ov5647` (v1), `imx219` (v2), `imx477`
+   (HQ) or `imx708` (v3). On a Pi 5/CM4 second port add `,cam0` if required.
+4. **Cable/connection**: power off, reseat the ribbon at both ends with the
+   contacts facing the correct way (Pi 5 needs the narrow 22-pin cable).
+
+Example `config.txt` edit (back it up first; use the overlay for *your* sensor):
+
+```sh
+sudo cp "$CONFIG" "$CONFIG.bak"
+sudo sed -i 's/^\s*start_x=1/#start_x=1/; s/^camera_auto_detect=0/camera_auto_detect=1/' "$CONFIG"
+grep -q '^camera_auto_detect=' "$CONFIG" || echo 'camera_auto_detect=1' | sudo tee -a "$CONFIG"
+tail -n 15 "$CONFIG"   # appended lines must fall under [all], not e.g. [pi4]/[cm4]
+sudo reboot
+```
+
+Only if `--list-cameras` still shows nothing with auto-detect, switch to an
+explicit overlay:
+
+```sh
+sudo sed -i 's/^camera_auto_detect=1/camera_auto_detect=0/' "$CONFIG"
+echo 'dtoverlay=ov5647' | sudo tee -a "$CONFIG"   # replace with your sensor
+sudo reboot
+```
+
+Continue only when `--list-cameras` lists a sensor and `libcamera-hello -t 2000`
+(or `rpicam-hello`) shows a preview. If the camera is listed but start fails
+with "busy", stop the legacy `webServer.py`/autorun service or any other
+camera user. A notebook kernel that already failed can be reused once the
+camera is detected; rerun the camera cell.
+
 ## Validation and physical acceptance
 
 Run `python -m unittest discover -s tests`; vision/widget tests need the optional

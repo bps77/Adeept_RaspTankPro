@@ -8,6 +8,14 @@ import time
 from ._lifecycle import ManagedController, ensure_open, number, release
 from ..exceptions import CameraError, CameraTimeoutError, HardwareDisabledError
 
+NO_CAMERA_HELP = (
+    "libcamera detected no camera. This is Pi configuration/connection, not "
+    "tank code: run 'libcamera-hello --list-cameras' (or 'rpicam-hello "
+    "--list-cameras'); disable Legacy Camera in raspi-config (remove start_x=1); "
+    "set camera_auto_detect=1, or camera_auto_detect=0 plus the sensor overlay "
+    "(e.g. dtoverlay=ov5647) in config.txt; reseat the ribbon cable powered "
+    "off; reboot. See docs/CAMERA_USAGE.md 'Troubleshooting'.")
+
 
 @dataclass(frozen=True)
 class Frame:
@@ -42,6 +50,8 @@ class _PiSource:
         from picamera2 import Picamera2
         from libcamera import Transform
 
+        if not Picamera2.global_camera_info():
+            raise CameraError(NO_CAMERA_HELP)
         self.camera = Picamera2()
         self.quality = settings["quality"]
         try:

@@ -184,6 +184,16 @@ class TestCamera(unittest.TestCase):
             native.stop.assert_called_once()
             native.close.assert_called_once()
 
+    def test_picamera2_backend_reports_undetected_camera_without_opening(self):
+        from rasptank.hardware.camera import _PiSource
+
+        picamera2 = Mock()
+        picamera2.Picamera2.global_camera_info.return_value = []
+        with patch.dict(sys.modules, {"picamera2": picamera2, "libcamera": Mock()}):
+            with self.assertRaisesRegex(CameraError, "list-cameras"):
+                _PiSource(dict(size=(2, 2), fps=15, quality=80, hflip=False, vflip=False))
+        picamera2.Picamera2.assert_not_called()
+
     def test_stuck_driver_frame_age_and_shutdown_are_bounded(self):
         with CameraController(source_factory=partial(FakeSource, stall=True),
                               shutdown_timeout=0.05, max_age=0.05) as camera:
