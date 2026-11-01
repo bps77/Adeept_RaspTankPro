@@ -43,6 +43,17 @@ mode, and must be closed by their caller. Created controllers are owned; failed
 construction rolls them back and `close()` attempts every owned resource.
 Context managers clean up even when the body fails.
 
+### Additional devices and behaviors
+
+`RaspTank` also accepts `enable_switches`, `enable_line_sensors` and `enable_imu`
+(all default `False`; attributes `switches`, `line_sensors`, `imu`). Lower-level
+pieces: `LEDStrip.police()/breath()/set_pixels()`, `rasptank.behaviors`
+(`line_follow_step`, `simple_line_step`, `obstacle_step`, `radar_scan`,
+`SteadyStabilizer`), `KalmanFilter`, `PID` and `rasptank.system`. Behaviors are
+single bounded steps: your code owns the loop and must stop the motors on exit.
+See [docs/FEATURES.md](docs/FEATURES.md) for legacy parity, unported features
+and ideas. Camera/web/GUI features are still legacy-only.
+
 ### Wiring and commands
 
 * Motors use BCM A/right enable **4**, direction **26/21**; B/left enable

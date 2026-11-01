@@ -29,6 +29,16 @@ failures. It is not a replacement for every legacy server feature.
   commands. The façade rolls back partial creation and closes every owned
   resource; injected controllers are borrowed and remain caller-owned.
 
+## Ported feature layer (software-only validated)
+
+`SwitchPorts` (BCM 5/6/13), `LineSensors` (L20/M16/R19, 1 = line), `Mpu6050`
+(0x68), LED `police/breath/set_pixels`, `KalmanFilter`, `PID`, `rasptank.system`
+and `rasptank.behaviors` (line follow, obstacle step, radar scan, steady
+stabiliser) mirror `server/` logic as single bounded steps with injectable
+sleeps; callers own loops. Behaviors stop motors on failure. Deliberate fixes:
+front-light off clears ports 2+3, steady output is clamped, info.py `os` import.
+Façade opt-ins: `enable_switches/line_sensors/imu`; injected remain borrowed.
+
 ## Runtime state versus persistence
 
 Servo positions begin as assumed 300-tick values, not physical measurements.
@@ -47,13 +57,13 @@ Legacy server scripts remain unchanged by the core refactor. Prior removal
 of automatic fetch/reset/pull/reboot updates remains in place; Wi-Fi/AP
 fallback is unchanged. Fork detachment is an owner/GitHub operation.
 
-IMU, switches, camera, radar scans, servo threads, web-server control and
-persistent calibration are not implemented by the new façade. Never run
+Camera/OpenCV, web-server control, servo threads/modes and persistent
+calibration are not implemented by the new package; see `docs/FEATURES.md`. Never run
 legacy scripts concurrently with new controllers that own the same hardware.
 
 ## Validation and remaining physical work
 
-Mock-based `unittest` checks cover exact pin/PWM/direction behavior, ranges,
+Mock-based `unittest` checks (105, incl. `tests/test_ported_features.py`) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic
