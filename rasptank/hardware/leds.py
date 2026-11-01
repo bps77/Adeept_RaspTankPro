@@ -9,7 +9,14 @@ from ._lifecycle import ManagedController, ensure_open, release
 
 
 class LEDStrip(ManagedController):
+    """WS281x LED strip (default 16 pixels on BCM 12) with finite, bounded effects.
+
+    Colours are integer (red, green, blue) triples from 0 to 255. No background
+    thread is used; effects block until their frames finish.
+    """
+
     def __init__(self, count=16, pin=12, *, use_gpio=True, strip=None, color=None):
+        """Create the strip; strip and color (a Color factory) may be injected."""
         if type(count) is not int or count <= 0:
             raise ValueError("count must be a positive integer")
         self.count = count
@@ -38,6 +45,7 @@ class LEDStrip(ManagedController):
                 raise HardwareError("Unable to initialize LED strip") from exc
 
     def _write(self, rgb, ids=None):
+        """Paint ids (default all pixels) and show once; no-op in dry run."""
         if self.use_gpio and self.strip is not None and self._color is not None:
             color = self._color(*rgb)
             for i in (range(self.strip.numPixels()) if ids is None else ids):
@@ -46,10 +54,12 @@ class LEDStrip(ManagedController):
 
     @staticmethod
     def _check_rgb(rgb):
+        """Raise ValueError unless every channel is an int in 0..255."""
         if any(type(value) is not int or not 0 <= value <= 255 for value in rgb):
             raise ValueError("RGB values must be integers from 0 to 255")
 
     def _show(self, rgb, ids=None):
+        """Write a frame; on hardware failure close and raise HardwareError."""
         try:
             self._write(rgb, ids)
         except Exception as exc:
@@ -127,9 +137,11 @@ class LEDStrip(ManagedController):
             self.play(self.breath_frames(red, green, blue, steps), sleep=sleep)
 
     def off(self):
+        """Turn all pixels off."""
         self.color_wipe(0, 0, 0)
 
     def close(self):
+        """Blank the strip, release the native driver if supported; idempotent."""
         if self._closed:
             return
         self._closed = True

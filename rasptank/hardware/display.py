@@ -7,7 +7,10 @@ from ._lifecycle import ManagedController, ensure_open
 
 
 class OledDisplay(ManagedController):
+    """SSD1306 OLED on I2C (default port 1, address 0x3C) via luma.oled, loaded lazily."""
+
     def __init__(self, port=1, address=0x3C, *, use_gpio=True, device=None, canvas=None):
+        """Open the display; device/canvas may be injected (e.g. mocks) for tests."""
         self.port = port
         self.address = address
         self.use_gpio = use_gpio
@@ -35,6 +38,7 @@ class OledDisplay(ManagedController):
                 raise HardwareError("Unable to initialize OLED") from exc
 
     def show(self, line1="GEWBOT.COM", line2="IP:CONNECTING"):
+        """Draw two text lines (strings) and remember them in ``lines``."""
         ensure_open(self)
         if not isinstance(line1, str) or not isinstance(line2, str):
             raise ValueError("OLED lines must be strings")
@@ -52,6 +56,7 @@ class OledDisplay(ManagedController):
         self.lines = (line1, line2)
 
     def close(self):
+        """Release the display device; idempotent."""
         if self._closed:
             return
         self._closed = True

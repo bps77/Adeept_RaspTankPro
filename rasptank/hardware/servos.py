@@ -19,6 +19,7 @@ class ServoController(ManagedController):
     """
 
     def __init__(self, use_gpio=True, *, pwm=None, address=SERVO_ADDRESS, bus=SERVO_BUS):
+        """Set the PCA9685 frequency only; pwm may be an injected driver object."""
         self.use_gpio = use_gpio
         self.pwm = pwm
         self.positions = dict.fromkeys(range(5), SERVO_INITIAL)
@@ -40,6 +41,7 @@ class ServoController(ManagedController):
                 raise ServoHardwareError("Unable to initialize PCA9685") from exc
 
     def _validate(self, channel, pulse=_UNSET):
+        """Check open state, channel 0..4 and (optionally) the channel's pulse range."""
         ensure_open(self)
         if type(channel) is not int or channel not in self.positions:
             raise ValueError("channel must be an integer from 0 to 4")

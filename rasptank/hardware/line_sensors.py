@@ -11,6 +11,7 @@ class LineSensors(ManagedController):
     """read() returns (left, middle, right); 1 means the legacy 'line seen' level."""
 
     def __init__(self, use_gpio=True, *, gpio=None):
+        """Configure BCM 20/16/19 as inputs; gpio may be an injected RPi.GPIO stand-in."""
         self.use_gpio = use_gpio
         self.gpio = gpio
         self._pins = []
@@ -34,6 +35,7 @@ class LineSensors(ManagedController):
                 raise HardwareError("Unable to initialize line sensors") from exc
 
     def read(self):
+        """Return (left, middle, right) 0/1 levels; raises when hardware is disabled."""
         ensure_open(self)
         if not self.use_gpio:
             raise HardwareDisabledError("Line sensor hardware is disabled")
@@ -48,6 +50,7 @@ class LineSensors(ManagedController):
             raise HardwareError("Line sensor read failed") from exc
 
     def close(self):
+        """Clean up only the pins this controller configured; idempotent."""
         if self._closed:
             return
         self._closed = True

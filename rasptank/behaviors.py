@@ -26,6 +26,7 @@ _LINE_LOST = {0: (80, 80, 0.0), 1: (80, 80, 0.0), 2: (0, 100, 0.03), 3: (0, 100,
 
 
 def _guard(motors, action):
+    """Run action; on any failure stop the motors, then re-raise the original error."""
     try:
         return action()
     except BaseException:
@@ -47,6 +48,7 @@ def line_follow_step(motors, readings, mark=0, *, sleep=time.sleep):
         raise ValueError("readings must be (left, middle, right)")
 
     def run():
+        """Apply the table row (or last-mark recovery) and return the new mark."""
         new_mark = mark
         if key in _LINE_TABLE:
             new_mark, kick_on_change, left, right, extra = _LINE_TABLE[key]
@@ -86,6 +88,7 @@ def obstacle_step(motors, ultrasonic, range_keep=0.7, *, sleep=time.sleep):
     forward. An echo timeout or sensor failure stops the tank and is re-raised.
     """
     def run():
+        """Choose and perform the move for the current distance; return its name."""
         distance = ultrasonic.distance()
         if range_keep / 3 > distance:
             motors.move(100, "backward", "no", 0.5)
@@ -140,6 +143,7 @@ class SteadyStabilizer:
     """
 
     def __init__(self, servos, imu, goal=300, *, channel=STEADY_SERVO, kalman=None):
+        """goal is the neutral pulse in ticks; kalman defaults to KalmanFilter(0.01, 0.1)."""
         self.servos = servos
         self.imu = imu
         self.goal = goal
@@ -147,6 +151,7 @@ class SteadyStabilizer:
         self.kalman = kalman or KalmanFilter(0.01, 0.1)
 
     def step(self):
+        """Read the IMU once, command the servo, and return the pulse sent."""
         filtered = self.kalman.update(self.imu.accel()["x"])
         low, high = SERVO_RANGES[self.channel]
         pulse = self.goal + int(round(23 / 9 * filtered * 9))

@@ -14,6 +14,22 @@ GitHub's fork relationship. The repository owner must detach the fork through
 GitHub's available fork-detachment options or contact GitHub Support. Preserve
 the existing history and attribution when doing so.
 
+## Package layout
+
+| Path | Purpose |
+|---|---|
+| `rasptank/tank.py` | `RaspTank` façade and ownership rules |
+| `rasptank/hardware/` | Controllers: motors, servos, ultrasonic, LEDs, OLED, switches, line sensors, IMU; `_lifecycle.py` shared helpers |
+| `rasptank/behaviors.py` | Single-step line follow, obstacle avoidance, radar scan, steady stabiliser |
+| `rasptank/filters.py`, `system.py` | `KalmanFilter`, `PID`; CPU/GPU temperature and load |
+| `rasptank/config.py`, `exceptions.py` | Wiring/range constants; error types |
+| `server/`, `client/` | Unchanged legacy code (camera, web UI, GUI) |
+| `docs/FEATURES.md` | Legacy parity, unported features, roadmap |
+| `AGENT_MEMORY.md` | Durable project notes and conventions |
+| `tests/` | Mock-based `unittest` suite |
+
+Every public class and method has a docstring; use `help(rasptank.RaspTank)`.
+
 ## Synchronous Python API
 
 Run from the repository root (Python 3). Importing `rasptank` or any of its
@@ -108,8 +124,10 @@ touches those injected driver objects.
 New controller positions, RGB/text state and servo calibration are **transient
 instance state**, not persistent storage. This API neither loads nor rewrites
 legacy calibration files or source-based calibration (including `RPIservo.py`).
-It does not implement legacy servo threads, radar scans, IMU, switches, camera,
-or web-server features. No physical Raspberry Pi validation has been performed.
+It does not implement legacy servo threads/modes, camera/OpenCV or web-server
+features (see [docs/FEATURES.md](docs/FEATURES.md)). Switches, line sensors, IMU,
+LED effects and `rasptank.behaviors` are ported but, like everything here,
+have had **no physical Raspberry Pi validation**.
 
 ### Manual Pi validation (explicit opt-in)
 
