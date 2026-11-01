@@ -90,7 +90,7 @@ shutdown. GPIO/process/OS failures still require a physical cutoff.
 
 ## Validation and remaining physical work
 
-Software `unittest` checks (132, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
+Software `unittest` checks (133, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic
