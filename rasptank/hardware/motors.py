@@ -37,6 +37,7 @@ class MotorController(ManagedController):
     """
 
     def __init__(self, use_gpio: bool = True, *, gpio=None):
+        """Set up stopped motors if use_gpio; gpio may be an injected RPi.GPIO stand-in."""
         self.use_gpio = use_gpio
         self.gpio = gpio
         self.pwm_a = None
@@ -84,6 +85,7 @@ class MotorController(ManagedController):
         self._stop_outputs()
 
     def _stop_outputs(self):
+        """Zero both duty cycles and drive every owned pin low, attempting all."""
         actions = [lambda pwm=pwm: pwm.ChangeDutyCycle(0)
                    for pwm in (self.pwm_a, self.pwm_b) if pwm is not None]
         actions.extend(lambda pin=pin: self.gpio.output(pin, self.gpio.LOW)
@@ -91,6 +93,7 @@ class MotorController(ManagedController):
         release(actions)
 
     def _motor(self, status, direction, speed, left):
+        """Validate, then drive one track; failures close the controller and raise."""
         ensure_open(self)
         if (type(status) is not int or type(direction) is not int
                 or status not in (0, 1) or direction not in (DIR_FORWARD, DIR_BACKWARD)):

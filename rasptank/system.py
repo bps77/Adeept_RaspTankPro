@@ -18,17 +18,21 @@ def gpu_temperature(command=("/opt/vc/bin/vcgencmd", "measure_temp")):
 
 
 def _psutil():
+    """Import psutil lazily so importing this module needs no extra dependency."""
     import psutil
     return psutil
 
 
 def cpu_percent():
+    """CPU utilisation percent since the previous psutil call."""
     return _psutil().cpu_percent()
 
 
 def ram_percent():
+    """RAM utilisation percent."""
     return _psutil().virtual_memory().percent
 
 
 def swap_percent():
+    """Swap utilisation percent."""
     return _psutil().swap_memory().percent

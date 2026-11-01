@@ -9,12 +9,15 @@ from ._lifecycle import ManagedController, ensure_open, number, release
 
 
 class UltrasonicSensor(ManagedController):
+    """HC-SR04 style sensor: trigger BCM 11, echo BCM 8 by default."""
+
     TRIGGER_PIN = ULTRASONIC_TRIGGER
     ECHO_PIN = ULTRASONIC_ECHO
 
     def __init__(self, trigger_pin=TRIGGER_PIN, echo_pin=ECHO_PIN, *,
                  use_gpio=True, gpio=None, timeout=ULTRASONIC_TIMEOUT,
                  clock=None, sleep=None):
+        """Validate pins and timeout (seconds); gpio, clock and sleep are injectable."""
         number(timeout, 0, float("inf"), "timeout")
         if timeout == 0:
             raise ValueError("timeout must be positive")
@@ -36,6 +39,7 @@ class UltrasonicSensor(ManagedController):
             self.setup()
 
     def setup(self):
+        """Configure the trigger and echo pins; idempotent, enables hardware."""
         ensure_open(self)
         if self._ready:
             return
@@ -61,6 +65,7 @@ class UltrasonicSensor(ManagedController):
             raise HardwareError("Unable to initialize ultrasonic GPIO") from exc
 
     def _wait(self, level, deadline):
+        """Block until echo reaches level; return the monotonic time or time out."""
         while True:
             value = self.gpio.input(self.echo_pin)
             now = self._clock()
@@ -95,7 +100,9 @@ class UltrasonicSensor(ManagedController):
             except BaseException:
                 pass
             raise HardwareError("Ultrasonic measurement failed") from exc
+
     def close(self):
+        """Drive trigger low and clean up configured pins; idempotent."""
         if self._closed:
             return
         self._closed = True

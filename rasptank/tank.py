@@ -26,6 +26,15 @@ class RaspTank(ManagedController):
                  enable_line_sensors=False, enable_imu=False, motors=None, servos=None,
                  ultrasonic=None, leds=None, display=None, switches=None,
                  line_sensors=None, imu=None):
+        """Create stopped motors plus any enabled or injected optional devices.
+
+        Args:
+            use_gpio: False makes every created controller a hardware-free dry run.
+            enable_*: create (and own) that optional device; default off.
+            motors, servos, ultrasonic, leds, display, switches, line_sensors, imu:
+                pre-built controllers to borrow instead of creating; the caller
+                closes them.
+        """
         self._closed = False
         self._owned = []
         self.motors = self.servos = self.ultrasonic = self.leds = self.display = None
@@ -56,30 +65,37 @@ class RaspTank(ManagedController):
 
     def move(self, speed=DEFAULT_SPEED, direction="no", turn="no",
              radius=DEFAULT_TURN_RADIUS):
+        """Drive with speed 0-100, direction forward/backward/no, turn left/right/no."""
         ensure_open(self)
         return self.motors.move(speed, direction, turn, radius)
 
     def forward(self, speed=DEFAULT_SPEED):
+        """Drive both tracks forward at speed (duty percent)."""
         ensure_open(self)
         return self.motors.forward(speed)
 
     def backward(self, speed=DEFAULT_SPEED):
+        """Drive both tracks backward at speed (duty percent)."""
         ensure_open(self)
         return self.motors.backward(speed)
 
     def turn_left(self, speed=DEFAULT_SPEED):
+        """Spin left in place."""
         ensure_open(self)
         return self.motors.turn_left(speed)
 
     def turn_right(self, speed=DEFAULT_SPEED):
+        """Spin right in place."""
         ensure_open(self)
         return self.motors.turn_right(speed)
 
     def stop(self):
+        """Stop both tracks immediately."""
         ensure_open(self)
         return self.motors.stop()
 
     def close(self):
+        """Idempotently close owned devices only; borrowed ones are left open."""
         if self._closed:
             return
         self._closed = True

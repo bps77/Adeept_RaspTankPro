@@ -1,6 +1,6 @@
 # Adeept RaspTank Pro — Durable Memory and Working Notes
 
-Updated: 2026-10-31
+Updated: 2026-11-01
 
 ## Implemented code
 
@@ -86,3 +86,13 @@ manual stand-supported tests and a physical emergency power cutoff.
 4. Keep calibration transient unless persistence is separately requested.
 5. Use existing standard-library unittest mocks and notebook JSON/AST checks;
    never imply physical validation from software-only results.
+6. Every public and private class, function and method keeps a docstring
+   stating contract, units and failure behaviour; update it with any change.
+7. Update README.md, docs/FEATURES.md and this file together when scope shifts.
+
+## Documentation map
+
+README.md (API, wiring, manual validation, package layout), docs/FEATURES.md
+(legacy parity/roadmap), this file (durable state), module/class/method
+docstrings (contracts). Legacy `server/` and `client/` code is undocumented
+beyond its own comments.

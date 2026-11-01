@@ -12,6 +12,7 @@ class Mpu6050(ManagedController):
     """Uses the third-party `mpu6050` driver, imported only when enabled."""
 
     def __init__(self, address=MPU_ADDRESS, *, use_gpio=True, sensor=None):
+        """Connect to the sensor at address; a driver object may be injected."""
         self.address = address
         self.use_gpio = use_gpio
         self.sensor = sensor
@@ -23,6 +24,7 @@ class Mpu6050(ManagedController):
                 raise HardwareError("Unable to initialize MPU6050") from exc
 
     def _get(self, name):
+        """Call a driver reading method, mapping failures to HardwareError."""
         ensure_open(self)
         if not self.use_gpio:
             raise HardwareDisabledError("IMU hardware is disabled")
@@ -36,9 +38,11 @@ class Mpu6050(ManagedController):
         return self._get("get_accel_data")
 
     def gyro(self):
+        """Return {'x','y','z'} angular rates in degrees/second."""
         return self._get("get_gyro_data")
 
     def temperature(self):
+        """Return the sensor die temperature in Celsius."""
         return self._get("get_temp")
 
     def average_accel(self, samples=10, *, delay=0.0, sleep=time.sleep):
@@ -55,4 +59,5 @@ class Mpu6050(ManagedController):
         return {axis: value / samples for axis, value in total.items()}
 
     def close(self):
+        """Mark closed; the I2C driver holds nothing that needs releasing."""
         self._closed = True

@@ -11,6 +11,7 @@ class SwitchPorts(ManagedController):
     """Ports 1..3 map to BCM 5, 6, 13 and all start off. Dry-run tracks state only."""
 
     def __init__(self, use_gpio=True, *, gpio=None):
+        """Configure all three ports as outputs, initially low."""
         self.use_gpio = use_gpio
         self.gpio = gpio
         self.state = dict.fromkeys(SWITCH_PINS, False)
@@ -35,6 +36,7 @@ class SwitchPorts(ManagedController):
                 raise HardwareError("Unable to initialize switch ports") from exc
 
     def set(self, port, on):
+        """Switch port 1..3 on or off; ``on`` must be a bool."""
         ensure_open(self)
         if type(port) is not int or port not in SWITCH_PINS:
             raise ValueError("port must be 1, 2 or 3")
@@ -52,6 +54,7 @@ class SwitchPorts(ManagedController):
         self.state[port] = on
 
     def head_light(self, on):
+        """Switch port 1 (head light)."""
         self.set(1, on)
 
     def front_light(self, on):
@@ -60,10 +63,12 @@ class SwitchPorts(ManagedController):
         self.set(3, on)
 
     def all_off(self):
+        """Attempt to turn every port off, even if one fails."""
         ensure_open(self)
         release([lambda port=port: self.set(port, False) for port in SWITCH_PINS])
 
     def close(self):
+        """Drive all ports low and clean up their pins; idempotent."""
         if self._closed:
             return
         self._closed = True
