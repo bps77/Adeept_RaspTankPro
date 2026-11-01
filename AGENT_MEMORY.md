@@ -65,7 +65,9 @@ legacy scripts concurrently with new controllers that own the same hardware.
 ## Optional camera, vision and supervised driving
 
 `CameraController` is opt-in and does not capture at construction. Picamera2
-lives in a spawned process; requests flush queued exposures, Pillow conversion
+lives in a spawned process; `capture_request()` plus explicit release supports
+older Bullseye Picamera2. SensorTimestamp minus exposure duration rejects
+pre-read exposures; missing timing fails explicitly. Pillow conversion
 defines packed RGB, and one immutable latest `Frame` supplies consumers.
 Frame deadlines, source errors and cleanup errors are explicit. Graceful
 shutdown drains IPC and closes the source; hung drivers are terminated/killed.
@@ -90,7 +92,7 @@ shutdown. GPIO/process/OS failures still require a physical cutoff.
 
 ## Validation and remaining physical work
 
-Software `unittest` checks (133, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
+Software `unittest` checks (136, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic

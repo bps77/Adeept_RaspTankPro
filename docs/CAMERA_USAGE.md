@@ -28,6 +28,14 @@ if a compatible pip wheel is unavailable. Do not install conflicting OpenCV
 packages together. Caffe MobileNet-SSD requires **OpenCV 4.x**, not 5.x.
 All new modules import safely without these optional packages.
 
+Bullseye's older Picamera2 is supported: capture uses `capture_request()` and
+explicit `release()`, not the newer `captured_request()` context manager or
+`flush` keyword. Each read discards requests until
+`SensorTimestamp - 1000 * ExposureTime` (nanoseconds) reaches the read's
+monotonic start time, matching modern Picamera2's flush rule. Missing or invalid
+timing metadata raises `CameraError` rather than weakening freshness checks.
+After pulling a wrapper update, restart the notebook kernel before retrying.
+
 ## Camera and notebook stream
 
 ```python
@@ -59,8 +67,8 @@ jpeg = camera.snapshot()
 ```
 
 `Frame` holds immutable packed **RGB** bytes, JPEG bytes, dimensions, sequence
-and a monotonic timestamp taken before the capture request. Capture flushes
-queued exposures so timestamps cannot disguise cached pre-stop frames as fresh.
+and a monotonic timestamp taken before the capture request. Capture discards
+pre-read exposures so timestamps cannot disguise cached pre-stop frames as fresh.
 Picamera2's Pillow
 image conversion determines channel order; confirm it with a physical color
 target. One capture process and one latest-frame slot serve all consumers.
@@ -243,7 +251,7 @@ Pi first. Close the notebook camera cell, then in a Pi terminal:
 
 ```sh
 libcamera-hello --list-cameras      # Bullseye; Bookworm: rpicam-hello --list-cameras
-vcgencmd get_camera                 # legacy stack status; detected=0 confirms no sensor
+vcgencmd get_camera                 # legacy status only; not a libcamera detection test
 CONFIG=/boot/config.txt; [ -f /boot/firmware/config.txt ] && CONFIG=/boot/firmware/config.txt
 grep -nE '^\s*(start_x|camera_auto_detect|dtoverlay|gpu_mem)' "$CONFIG"
 dmesg | grep -iE 'ov5647|imx219|imx477|imx708|unicam|cfe'
@@ -259,31 +267,34 @@ Fix according to what you find, then reboot:
 3. **Auto-detect does not find a third-party module** (common with OV5647
    "Pi Camera v1"-compatible boards): set `camera_auto_detect=0` and add the
    matching overlay, e.g. `dtoverlay=ov5647` (v1), `imx219` (v2), `imx477`
-   (HQ) or `imx708` (v3). On a Pi 5/CM4 second port add `,cam0` if required.
+   (HQ) or `imx708` (v3). Dual-port boards may require a port-specific overlay
+   argument; check your board's camera connector documentation.
 4. **Cable/connection**: power off, reseat the ribbon at both ends with the
    contacts facing the correct way (Pi 5 needs the narrow 22-pin cable).
 
-Example `config.txt` edit (back it up first; use the overlay for *your* sensor):
+Back up and edit the configuration, removing active `start_x=1` entries and
+ensuring the camera settings are under `[all]`, not a model-specific section:
 
 ```sh
-sudo cp "$CONFIG" "$CONFIG.bak"
-sudo sed -i 's/^\s*start_x=1/#start_x=1/; s/^camera_auto_detect=0/camera_auto_detect=1/' "$CONFIG"
-grep -q '^camera_auto_detect=' "$CONFIG" || echo 'camera_auto_detect=1' | sudo tee -a "$CONFIG"
-tail -n 15 "$CONFIG"   # appended lines must fall under [all], not e.g. [pi4]/[cm4]
+sudo cp "$CONFIG" "$CONFIG.bak.$(date +%Y%m%d-%H%M%S)"
+sudo nano "$CONFIG"
 sudo reboot
 ```
 
 Only if `--list-cameras` still shows nothing with auto-detect, switch to an
 explicit overlay:
 
-```sh
-sudo sed -i 's/^camera_auto_detect=1/camera_auto_detect=0/' "$CONFIG"
-echo 'dtoverlay=ov5647' | sudo tee -a "$CONFIG"   # replace with your sensor
-sudo reboot
+```ini
+[all]
+camera_auto_detect=0
+dtoverlay=ov5647
 ```
 
+Replace `ov5647` with your identified sensor; do not add conflicting sensor
+overlays or leave a later `camera_auto_detect=1` override. Reboot after editing.
+
 Continue only when `--list-cameras` lists a sensor and `libcamera-hello -t 2000`
-(or `rpicam-hello`) shows a preview. If the camera is listed but start fails
+(or `rpicam-hello`) works; use `-n` for a headless session. If the camera is listed but start fails
 with "busy", stop the legacy `webServer.py`/autorun service or any other
 camera user. A notebook kernel that already failed can be reused once the
 camera is detected; rerun the camera cell.
