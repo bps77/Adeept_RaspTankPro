@@ -8,6 +8,14 @@ import time
 from ._lifecycle import ManagedController, ensure_open, number, release
 from ..exceptions import CameraError, CameraTimeoutError, HardwareDisabledError
 
+NO_CAMERA_HELP = (
+    "libcamera detected no camera. This is Pi configuration/connection, not "
+    "tank code: run 'libcamera-hello --list-cameras' (or 'rpicam-hello "
+    "--list-cameras'); disable Legacy Camera in raspi-config (remove start_x=1); "
+    "set camera_auto_detect=1, or camera_auto_detect=0 plus the sensor overlay "
+    "(e.g. dtoverlay=ov5647) in config.txt; reseat the ribbon cable powered "
+    "off; reboot. See docs/CAMERA_USAGE.md 'Troubleshooting'.")
+
 
 @dataclass(frozen=True)
 class Frame:
@@ -42,6 +50,8 @@ class _PiSource:
         from picamera2 import Picamera2
         from libcamera import Transform
 
+        if not Picamera2.global_camera_info():
+            raise CameraError(NO_CAMERA_HELP)
         self.camera = Picamera2()
         self.quality = settings["quality"]
         try:
@@ -59,14 +69,31 @@ class _PiSource:
             raise
 
     def read(self):
-        """Capture RGB and JPEG from one request; release request on every failure."""
+        """Wait for a post-read exposure; reject missing timing and release every request."""
         from io import BytesIO
 
-        with self.camera.captured_request(flush=True) as request:
-            image = request.make_image("main").convert("RGB")
-            output = BytesIO()
-            image.save(output, format="JPEG", quality=self.quality)
-            return image.width, image.height, image.tobytes(), output.getvalue()
+        started_ns = time.monotonic_ns()
+        while True:
+            request = self.camera.capture_request()
+            try:
+                metadata = request.get_metadata()
+                sensor_ns = metadata.get("SensorTimestamp")
+                exposure_us = metadata.get("ExposureTime")
+                if (type(sensor_ns) is not int or sensor_ns <= 0
+                        or type(exposure_us) is not int or exposure_us < 0):
+                    raise CameraError(
+                        "Camera frame lacks valid SensorTimestamp/ExposureTime; "
+                        "cannot verify freshness. Update the Raspberry Pi OS "
+                        "libcamera and python3-picamera2 packages.")
+                # Match Picamera2's flush rule without requiring its newer API.
+                if sensor_ns - 1000 * exposure_us < started_ns:
+                    continue
+                image = request.make_image("main").convert("RGB")
+                output = BytesIO()
+                image.save(output, format="JPEG", quality=self.quality)
+                return image.width, image.height, image.tobytes(), output.getvalue()
+            finally:
+                request.release()
 
     def close(self):
         """Stop and release the child-owned camera, attempting both operations."""

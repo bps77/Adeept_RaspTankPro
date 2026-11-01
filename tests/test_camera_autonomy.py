@@ -162,19 +162,23 @@ class TestCamera(unittest.TestCase):
     def test_picamera2_backend_flushes_requests_and_defines_rgb_bytes(self):
         from rasptank.hardware.camera import _PiSource
 
-        native = Mock()
+        native = Mock(spec=["capture_request", "create_video_configuration",
+                            "configure", "start", "stop", "close"])
         request = Mock()
-        native.captured_request.return_value.__enter__ = Mock(return_value=request)
-        native.captured_request.return_value.__exit__ = Mock(return_value=False)
+        native.capture_request.return_value = request
+        request.get_metadata.return_value = {
+            "SensorTimestamp": 2_000_000, "ExposureTime": 1000}
         image = Mock(width=2, height=2)
         image.tobytes.return_value = bytes([255, 0, 0] * 4)
         image.save.side_effect = lambda stream, **kwargs: stream.write(b"jpeg")
         request.make_image.return_value.convert.return_value = image
         with patch.dict(sys.modules, {"picamera2": Mock(Picamera2=Mock(return_value=native)),
-                                     "libcamera": Mock()}):
+                                     "libcamera": Mock()}), \
+                patch("rasptank.hardware.camera.time.monotonic_ns", return_value=1_000_000):
             source = _PiSource(dict(size=(2, 2), fps=15, quality=80, hflip=False, vflip=False))
             self.assertEqual(source.read(), (2, 2, image.tobytes.return_value, b"jpeg"))
-            native.captured_request.assert_called_once_with(flush=True)
+            native.capture_request.assert_called_once_with()
+            request.release.assert_called_once_with()
             request.make_image.return_value.convert.assert_called_once_with("RGB")
             native.create_video_configuration.assert_called_once_with(
                 main={"size": (2, 2), "format": "RGB888"},
@@ -183,6 +187,81 @@ class TestCamera(unittest.TestCase):
             source.close()
             native.stop.assert_called_once()
             native.close.assert_called_once()
+
+    def test_picamera2_backend_discards_pre_read_exposures(self):
+        """Discard stale exposures, including frames completed after the read began."""
+        from rasptank.hardware.camera import _PiSource
+
+        source = _PiSource.__new__(_PiSource)
+        source.camera = Mock(spec=["capture_request"])
+        source.quality = 80
+        stale, in_flight, fresh = Mock(), Mock(), Mock()
+        for request, timestamp in ((stale, 900_000), (in_flight, 1_500_000),
+                                   (fresh, 2_000_000)):
+            request.get_metadata.return_value = {
+                "SensorTimestamp": timestamp, "ExposureTime": 1000}
+        image = fresh.make_image.return_value.convert.return_value
+        image.width = image.height = 2
+        image.tobytes.return_value = bytes(12)
+        image.save.side_effect = lambda stream, **kwargs: stream.write(b"jpeg")
+        source.camera.capture_request.side_effect = [stale, in_flight, fresh]
+        with patch("rasptank.hardware.camera.time.monotonic_ns", return_value=1_000_000):
+            self.assertEqual(source.read(), (2, 2, bytes(12), b"jpeg"))
+        for request in (stale, in_flight, fresh):
+            request.release.assert_called_once_with()
+        stale.make_image.assert_not_called()
+        in_flight.make_image.assert_not_called()
+
+    def test_picamera2_backend_rejects_invalid_timing_and_releases(self):
+        """Missing or malformed timing must not become a success-shaped fresh frame."""
+        from rasptank.hardware.camera import _PiSource
+
+        source = _PiSource.__new__(_PiSource)
+        source.camera = Mock(spec=["capture_request"])
+        for metadata in ({}, {"SensorTimestamp": 2_000_000},
+                         {"SensorTimestamp": None, "ExposureTime": 1000},
+                         {"SensorTimestamp": 0, "ExposureTime": 1000},
+                         {"SensorTimestamp": True, "ExposureTime": 1000},
+                         {"SensorTimestamp": 2_000_000, "ExposureTime": -1}):
+            with self.subTest(metadata=metadata):
+                request = Mock()
+                request.get_metadata.return_value = metadata
+                source.camera.capture_request.return_value = request
+                with self.assertRaisesRegex(CameraError, "cannot verify freshness"):
+                    source.read()
+                request.release.assert_called_once_with()
+                request.make_image.assert_not_called()
+
+    def test_picamera2_backend_releases_requests_on_processing_errors(self):
+        """Metadata, conversion and encoding failures release the acquired request."""
+        from rasptank.hardware.camera import _PiSource
+
+        for failure in ("metadata", "image", "jpeg"):
+            with self.subTest(failure=failure):
+                source = _PiSource.__new__(_PiSource)
+                source.camera = Mock(spec=["capture_request"])
+                source.quality = 80
+                request = source.camera.capture_request.return_value
+                request.get_metadata.return_value = {
+                    "SensorTimestamp": 2_000_000, "ExposureTime": 1000}
+                operation = {"metadata": request.get_metadata,
+                             "image": request.make_image,
+                             "jpeg": request.make_image.return_value.convert.return_value.save}
+                operation[failure].side_effect = RuntimeError("test processing failure")
+                with patch("rasptank.hardware.camera.time.monotonic_ns", return_value=1_000_000):
+                    with self.assertRaisesRegex(RuntimeError, "test processing failure"):
+                        source.read()
+                request.release.assert_called_once_with()
+
+    def test_picamera2_backend_reports_undetected_camera_without_opening(self):
+        from rasptank.hardware.camera import _PiSource
+
+        picamera2 = Mock()
+        picamera2.Picamera2.global_camera_info.return_value = []
+        with patch.dict(sys.modules, {"picamera2": picamera2, "libcamera": Mock()}):
+            with self.assertRaisesRegex(CameraError, "list-cameras"):
+                _PiSource(dict(size=(2, 2), fps=15, quality=80, hflip=False, vflip=False))
+        picamera2.Picamera2.assert_not_called()
 
     def test_stuck_driver_frame_age_and_shutdown_are_bounded(self):
         with CameraController(source_factory=partial(FakeSource, stall=True),
