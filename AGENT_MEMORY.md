@@ -57,21 +57,51 @@ Legacy server scripts remain unchanged by the core refactor. Prior removal
 of automatic fetch/reset/pull/reboot updates remains in place; Wi-Fi/AP
 fallback is unchanged. Fork detachment is an owner/GitHub operation.
 
-Camera/OpenCV, web-server control, servo threads/modes and persistent
-calibration are not implemented by the new package; see `docs/FEATURES.md`. Never run
+Web-server control, legacy camera-driven servo/motion modes, servo threads/modes
+and persistent calibration are not implemented by the new package; see
+`docs/FEATURES.md`. Never run
 legacy scripts concurrently with new controllers that own the same hardware.
+
+## Optional camera, vision and supervised driving
+
+`CameraController` is opt-in and does not capture at construction. Picamera2
+lives in a spawned process; requests flush queued exposures, Pillow conversion
+defines packed RGB, and one immutable latest `Frame` supplies consumers.
+Frame deadlines, source errors and cleanup errors are explicit. Graceful
+shutdown drains IPC and closes the source; hung drivers are terminated/killed.
+Disabled mode never opens/invokes a source. Injected cameras remain borrowed.
+
+`notebook.show_camera`/`RaspTank.show_camera` return optional rate-limited widget
+handles; attached views close with the tank. `vision` has HSV color matching,
+annotations, a checksum-verified local Caffe MobileNet-SSD/VOC adapter and a
+process-bounded `find_object`; no automatic model downloads or motor outputs.
+OpenCV 4.x is required for Caffe; optional requirements and manual assets are
+documented in `docs/CAMERA_USAGE.md`.
+
+`command_timeout` explicitly enables facade arbitration/watchdog; None preserves
+old synchronous motion. Manual facade output cancels autonomy. Stop invalidates
+queued tokens, faults latch, close stops even borrowed motors without closing
+them. Roaming requires both fresh sensors and an explicitly calibrated observer.
+`FloorObserver` is a restrictive HSV corridor heuristic, not depth or guaranteed
+obstacle avoidance. Each short pulse stops before post-stop observations;
+recovery/duration are finite, no reverse/servo scan occurs. Watchdog is separate
+from perception; a hung observer prevents restart and is reported on bounded
+shutdown. GPIO/process/OS failures still require a physical cutoff.
 
 ## Validation and remaining physical work
 
-Mock-based `unittest` checks (105, incl. `tests/test_ported_features.py`) cover exact pin/PWM/direction behavior, ranges,
+Software `unittest` checks (132, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic
 checks. Hardware actions require disabled-by-default opt-in flags and
 `finally` cleanup.
 
-No physical Raspberry Pi, motor, servo, sensor, LED or OLED tests have been
-performed. Mock/static success does not establish wiring, electrical safety,
+No physical Raspberry Pi camera/roaming tests have been performed by this agent.
+An actual pinned local MobileNet-SSD inference was executed on synthetic images,
+not on the Pi. Core hardware checks remain software-only in this work; owner
+feedback that existing notebooks ran successfully does not validate new camera,
+vision or watchdog behavior. Mock/static success does not establish wiring, electrical safety,
 physical direction, pulse calibration or timing accuracy. README documents
 manual stand-supported tests and a physical emergency power cutoff.
 
@@ -79,8 +109,9 @@ manual stand-supported tests and a physical emergency power cutoff.
 
 1. Treat legacy hardware code as the wiring specification, not architectural
    speculation; distinguish deliberate safety corrections from equivalence.
-2. Keep controllers synchronous, imports inert, optional devices explicit,
-   and shared hardware ownership unambiguous.
+2. Keep core controllers synchronous, imports inert, optional devices explicit,
+   and shared hardware ownership unambiguous. Camera/view/autonomy workers start
+   explicitly, have bounded shutdown and surface faults.
 3. Validate commands before output; clean up only acquired resources, attempt
    every resource on failure, and preserve the original initialization error.
 4. Keep calibration transient unless persistence is separately requested.
@@ -91,6 +122,10 @@ manual stand-supported tests and a physical emergency power cutoff.
 7. Update README.md, docs/FEATURES.md and this file together when scope shifts.
 
 ## Documentation map
+
+`docs/CAMERA_AUTONOMY_PLAN.md` records approved camera/notebook/vision and
+supervised fused-roaming scope; `docs/CAMERA_USAGE.md` is the implemented API,
+model/dependency setup and remaining physical acceptance guide.
 
 README.md (API, wiring, manual validation, package layout), docs/FEATURES.md
 (legacy parity/roadmap), this file (durable state), module/class/method

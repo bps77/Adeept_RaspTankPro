@@ -23,3 +23,15 @@ class HardwareDisabledError(HardwareError):
 
 class ControllerClosedError(HardwareError):
     """An operation was requested after close."""
+
+
+class CameraError(HardwareError):
+    """Camera startup, capture or worker shutdown failed."""
+
+
+class CameraTimeoutError(CameraError, TimeoutError):
+    """No fresh camera frame arrived within the requested deadline."""
+
+
+class AutonomyError(HardwareError):
+    """Supervised driving faulted; explicit restart is required."""
