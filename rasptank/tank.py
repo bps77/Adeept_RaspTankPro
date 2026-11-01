@@ -7,6 +7,9 @@ from .hardware.servos import ServoController
 from .hardware.ultrasonic import UltrasonicSensor
 from .hardware.leds import LEDStrip
 from .hardware.display import OledDisplay
+from .hardware.switches import SwitchPorts
+from .hardware.line_sensors import LineSensors
+from .hardware.imu import Mpu6050
 
 
 class RaspTank(ManagedController):
@@ -19,17 +22,23 @@ class RaspTank(ManagedController):
     """
 
     def __init__(self, use_gpio=True, *, enable_servos=False, enable_ultrasonic=False,
-                 enable_leds=False, enable_display=False, motors=None, servos=None,
-                 ultrasonic=None, leds=None, display=None):
+                 enable_leds=False, enable_display=False, enable_switches=False,
+                 enable_line_sensors=False, enable_imu=False, motors=None, servos=None,
+                 ultrasonic=None, leds=None, display=None, switches=None,
+                 line_sensors=None, imu=None):
         self._closed = False
         self._owned = []
         self.motors = self.servos = self.ultrasonic = self.leds = self.display = None
+        self.switches = self.line_sensors = self.imu = None
         devices = (
             ("motors", motors, True, MotorController),
             ("servos", servos, enable_servos, ServoController),
             ("ultrasonic", ultrasonic, enable_ultrasonic, UltrasonicSensor),
             ("leds", leds, enable_leds, LEDStrip),
             ("display", display, enable_display, OledDisplay),
+            ("switches", switches, enable_switches, SwitchPorts),
+            ("line_sensors", line_sensors, enable_line_sensors, LineSensors),
+            ("imu", imu, enable_imu, Mpu6050),
         )
         try:
             for name, supplied, enabled, factory in devices:
