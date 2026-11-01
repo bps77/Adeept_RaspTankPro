@@ -1,7 +1,21 @@
 # Notebook camera, object identification and room roaming
 
-Status: proposed implementation plan; no camera or autonomy code is added yet.
+Status: software implementation delivered; physical acceptance gates remain open.
 Branch: `feature/notebook-camera-autonomy`, based on `master`.
+
+Implemented: camera wrapper/facade ownership, optional nonblocking notebook view,
+color and explicit local MobileNet-SSD identification, process-bounded search,
+command expiry/manual arbitration, calibrated visual corridor plus ultrasonic
+roaming, telemetry, mock/process/image tests and hardware-disabled notebook.
+See [current API and setup](CAMERA_USAGE.md). Proposed names below describe the
+original plan; the usage guide is the implemented contract.
+
+Remaining: real Pi/front-end streaming trials, floor/camera/range alignment,
+semantic inference benchmarks and physical stopping-distance/watchdog trials.
+The initial fused policy uses fixed alignment and `FloorObserver` on a uniform
+trial floor; optional servo radar scans and general visual free-space inference
+are not delivered. Class identification is not personal-instance recognition.
+No physical acceptance gate is claimed passed.
 
 ## Goals and boundaries
 
@@ -35,7 +49,8 @@ people remain hazards; trials require supervision and a physical power cutoff.
 
 ## Proposed API and architecture
 
-Names below are proposed contracts, not currently available methods.
+Names below record the original proposed contracts; see the usage guide for
+available methods and documented differences.
 
 ### 1. Camera wrapper
 

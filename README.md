@@ -19,13 +19,15 @@ the existing history and attribution when doing so.
 | Path | Purpose |
 |---|---|
 | `rasptank/tank.py` | `RaspTank` façade and ownership rules |
-| `rasptank/hardware/` | Controllers: motors, servos, ultrasonic, LEDs, OLED, switches, line sensors, IMU; `_lifecycle.py` shared helpers |
+| `rasptank/hardware/` | Controllers: motors, servos, ultrasonic, LEDs, OLED, switches, line sensors, IMU, camera; `_lifecycle.py` shared helpers |
 | `rasptank/behaviors.py` | Single-step line follow, obstacle avoidance, radar scan, steady stabiliser |
 | `rasptank/filters.py`, `system.py` | `KalmanFilter`, `PID`; CPU/GPU temperature and load |
 | `rasptank/config.py`, `exceptions.py` | Wiring/range constants; error types |
+| `rasptank/notebook.py`, `vision.py`, `autonomy.py` | Optional video widgets, local detection, fused roaming and driving supervision |
 | `server/`, `client/` | Unchanged legacy code (camera, web UI, GUI) |
 | `docs/FEATURES.md` | Legacy parity, unported features, roadmap |
-| `docs/CAMERA_AUTONOMY_PLAN.md` | Proposed notebook camera, object identification and supervised roaming plan |
+| `docs/CAMERA_AUTONOMY_PLAN.md` | Approved camera/autonomy plan and remaining acceptance gates |
+| `docs/CAMERA_USAGE.md` | Implemented camera/vision/roaming API, dependency/model setup and physical acceptance |
 | `AGENT_MEMORY.md` | Durable project notes and conventions |
 | `tests/` | Mock-based `unittest` suite |
 
@@ -69,7 +71,52 @@ pieces: `LEDStrip.police()/breath()/set_pixels()`, `rasptank.behaviors`
 `SteadyStabilizer`), `KalmanFilter`, `PID` and `rasptank.system`. Behaviors are
 single bounded steps: your code owns the loop and must stop the motors on exit.
 See [docs/FEATURES.md](docs/FEATURES.md) for legacy parity, unported features
-and ideas. Camera/web/GUI features are still legacy-only.
+and ideas. Web/GUI features and legacy camera-driven servo/motion modes remain
+legacy-only; the new independent camera API is described below.
+
+### Notebook camera, object identification and supervised roaming
+
+See [docs/CAMERA_USAGE.md](docs/CAMERA_USAGE.md) and the hardware-disabled
+`notebooks/rasptank_camera_roaming.ipynb`. Select a **Pi kernel**, including
+Remote SSH/tunneled Jupyter, and stop other hardware owners first.
+
+```python
+from rasptank import RaspTank
+
+# Only after stand-supported motor checks and camera setup:
+tank = RaspTank(enable_camera=True, command_timeout=0.5)
+try:
+    tank.start_camera()
+    view = tank.show_camera(fps=10)  # returns immediately; other cells can drive
+    # Separate cells: tank.forward(15), tank.turn_left(15), tank.stop()
+finally:
+    tank.close()
+```
+
+For interactive notebook use, keep creation, movement and cleanup in separate
+cells as shown in the new notebook; a context/finally block closes video when
+its cell finishes. Camera-only `CameraController` does not open motors.
+Camera creation is opt-in and capture starts explicitly; imports remain inert.
+`enable_camera` and an injected `camera` follow the existing ownership rules.
+
+`detect_color`, `detect_objects`, `annotate` and bounded `find_object` are
+motor-independent helpers in `rasptank.vision`. A verified, manually installed
+local MobileNet-SSD adapter recognizes known VOC classes; custom items need an
+injected detector. Nothing downloads models automatically.
+
+`tank.start_roaming(observer=..., policy=...)` requires an explicitly calibrated
+camera observer, ultrasonic sensor and opt-in `command_timeout`. A short forward
+or turn pulse is followed by stopping and acquiring fresh observations from
+both sensors. Manual facade commands cancel roaming; `tank.stop()` cancels
+queued output. Forgotten manual commands and stalled perception expire through
+an independent watchdog. Faults latch and require inspection/explicit reset.
+Direct low-level motor calls bypass supervision.
+
+The provided `FloorObserver` is a restrictive calibrated floor-color heuristic,
+**not depth sensing or guaranteed obstacle avoidance**. Numeric defaults need
+Pi latency/stopping-distance validation. Trials must be supervised on a flat
+enclosed floor without stairs, people or pets, with a physical cutoff.
+Software cannot stop motors after total process/OS failure or hung GPIO.
 
 ### Wiring and commands
 
@@ -125,8 +172,8 @@ touches those injected driver objects.
 New controller positions, RGB/text state and servo calibration are **transient
 instance state**, not persistent storage. This API neither loads nor rewrites
 legacy calibration files or source-based calibration (including `RPIservo.py`).
-It does not implement legacy servo threads/modes, camera/OpenCV or web-server
-features (see [docs/FEATURES.md](docs/FEATURES.md)). Switches, line sensors, IMU,
+It does not implement legacy servo threads/modes, camera-driven servo tracking
+or web-server features (see [docs/FEATURES.md](docs/FEATURES.md)). Switches, line sensors, IMU,
 LED effects and `rasptank.behaviors` are ported but, like everything here,
 have had **no physical Raspberry Pi validation**.
 

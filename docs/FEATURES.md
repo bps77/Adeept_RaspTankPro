@@ -23,11 +23,29 @@ hardware**; all checks are mock-based (`python -m unittest discover -s tests`).
 | `Kalman_filter.py`, `PID.py` | `KalmanFilter`, `PID` | PID clock injectable |
 | `info.py` | `rasptank.system` | Fixes legacy missing `import os`; psutil imported lazily |
 
+## New optional camera and supervised feature layer
+
+Imports remain inert. Unlike synchronous core controllers, these workers are
+explicitly started and supervised. See [usage/setup](CAMERA_USAGE.md).
+
+| Reference / feature | New API | Scope and limits |
+|---|---|---|
+| `camera_opencv.py` Picamera2 capture | `CameraController`, `RaspTank.start_camera` | Isolated process, fresh immutable RGB/JPEG, bounded startup/shutdown; no legacy imports |
+| Notebook video | `notebook.show_camera`, `RaspTank.show_camera` | Nonblocking optional widgets, one latest frame; camera remains borrowed |
+| `camera_opencv.py` HSV color search | `vision.detect_color`, `hsv_target`, `annotate` | Detection only; no motor/servo/light side effects |
+| Semantic class identification | `vision.MobileNetSSD`, `detect_objects`, `find_object` | Verified explicit local VOC model; bounded search process; custom detector contract |
+| Fused room roaming | `FloorObserver`, `RoamPolicy`, `RaspTank.start_roaming` | Calibrated corridor and range both veto forward; finite pulses/turn recovery/duration, no reverse/SLAM |
+| Driving watchdog and arbitration | `RaspTank(command_timeout=...)`, `stop`, `reset_drive_fault` | Opt-in command expiry, manual override and latched faults; low-level calls bypass it |
+
+Floor-color assessment is not guaranteed obstacle/free-space recognition.
+Pi/physical acceptance and frontend validation remain outstanding; no numerical
+latency or stopping-distance default is claimed safe on hardware.
+
 ## Not ported (documented only)
 
 | Legacy feature | Source | Why / what is needed |
 |---|---|---|
-| Camera streaming, OpenCV tracking, colour/motion/watchdog modes | `FPV.py`, `FPVtest.py`, `camera_opencv.py`, `base_camera.py` | Needs OpenCV, numpy, imutils, a camera and a streaming design |
+| Legacy camera-driven servo tracking, CV line-follow and motion/watchdog modes | `FPV.py`, `FPVtest.py`, `camera_opencv.py` | New independent capture/color helpers do not reproduce these hardware side effects |
 | Flask web UI and websocket control | `webServer.py`, `app.py`, `appserver.py`, `server.py`, `dist/` | Network-exposed control needs authentication design |
 | Tkinter desktop client | `client/GUI.py` | Remains legacy |
 | Threaded servo motion modes (init/auto/certain/quick/wiggle, speed ramps) | `RPIservo.py` | Would need a supervised background worker with stop-on-close |
@@ -37,14 +55,12 @@ hardware**; all checks are mock-based (`python -m unittest discover -s tests`).
 
 ## Possible future features
 
-The proposed [camera and autonomy implementation plan](CAMERA_AUTONOMY_PLAN.md)
-covers nonblocking notebook video, object identification and supervised roaming
-using camera and ultrasonic observations. It is a plan, not implemented parity.
+The [camera and autonomy implementation plan](CAMERA_AUTONOMY_PLAN.md)
+records delivery boundaries and remaining physical acceptance gates.
 
 * Curved-drive (radius-aware) motion; speed ramps and acceleration limits.
-* Watchdog that stops motors if no command arrives within a timeout.
 * Persistent, opt-in calibration file with schema and validation.
-* Async/threaded runner wrapping the `behaviors` steps with clean shutdown.
+* General-purpose supervised runner for the other synchronous `behaviors` steps.
 * Battery voltage monitoring, if the board exposes an ADC.
 * Line-follower PID steering using `PID`; IMU heading hold using the gyro.
 * Obstacle mapping from `radar_scan` output; mock-hardware simulator.

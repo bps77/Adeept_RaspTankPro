@@ -13,6 +13,8 @@ from .hardware.display import OledDisplay
 from .hardware.switches import SwitchPorts
 from .hardware.line_sensors import LineSensors
 from .hardware.imu import Mpu6050
+from .hardware.camera import CameraController, Frame
+from .autonomy import RoamPolicy, RoamingSession
 from .filters import KalmanFilter, PID
 from . import behaviors, system
 from .config import DEFAULT_SPEED
@@ -27,6 +29,10 @@ __all__ = [
     "SwitchPorts",
     "LineSensors",
     "Mpu6050",
+    "CameraController",
+    "Frame",
+    "RoamPolicy",
+    "RoamingSession",
     "KalmanFilter",
     "PID",
     "behaviors",
