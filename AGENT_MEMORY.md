@@ -92,6 +92,10 @@ manual stand-supported tests and a physical emergency power cutoff.
 
 ## Documentation map
 
+`docs/CAMERA_AUTONOMY_PLAN.md` records the proposed camera/notebook/vision and
+supervised fused-roaming work. No camera or autonomy implementation is added by
+that planning branch; its proposed API names are not available contracts.
+
 README.md (API, wiring, manual validation, package layout), docs/FEATURES.md
 (legacy parity/roadmap), this file (durable state), module/class/method
 docstrings (contracts). Legacy `server/` and `client/` code is undocumented

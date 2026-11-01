@@ -25,6 +25,7 @@ the existing history and attribution when doing so.
 | `rasptank/config.py`, `exceptions.py` | Wiring/range constants; error types |
 | `server/`, `client/` | Unchanged legacy code (camera, web UI, GUI) |
 | `docs/FEATURES.md` | Legacy parity, unported features, roadmap |
+| `docs/CAMERA_AUTONOMY_PLAN.md` | Proposed notebook camera, object identification and supervised roaming plan |
 | `AGENT_MEMORY.md` | Durable project notes and conventions |
 | `tests/` | Mock-based `unittest` suite |
 

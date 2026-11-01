@@ -37,6 +37,10 @@ hardware**; all checks are mock-based (`python -m unittest discover -s tests`).
 
 ## Possible future features
 
+The proposed [camera and autonomy implementation plan](CAMERA_AUTONOMY_PLAN.md)
+covers nonblocking notebook video, object identification and supervised roaming
+using camera and ultrasonic observations. It is a plan, not implemented parity.
+
 * Curved-drive (radius-aware) motion; speed ramps and acceleration limits.
 * Watchdog that stops motors if no command arrives within a timeout.
 * Persistent, opt-in calibration file with schema and validation.
