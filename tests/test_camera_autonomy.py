@@ -84,7 +84,7 @@ class TestCamera(unittest.TestCase):
         script = (
             "import sys; import rasptank; import rasptank.vision; import rasptank.notebook; "
             "assert not any(n in sys.modules for n in "
-            "('cv2','numpy','picamera2','libcamera','ipywidgets','RPi.GPIO'))")
+            "('cv2','numpy','picamera2','libcamera','ipywidgets','anywidget','RPi.GPIO'))")
         subprocess.run([sys.executable, "-c", script], check=True)
 
     def test_disabled_and_validation(self):
@@ -530,6 +530,61 @@ class TestDriving(unittest.TestCase):
 class TestNotebook(unittest.TestCase):
     """Check notebook defaults and actual widget worker without a browser or Pi."""
 
+    def test_popout_validation_and_optional_dependency_error(self):
+        """Reject invalid opt-ins; missing optional dependencies report an install command."""
+        from rasptank.notebook import CameraView, _popout_image
+
+        with self.assertRaisesRegex(ValueError, "popout must be bool"):
+            CameraView(FakeCamera(), popout="yes")
+        with patch.dict(sys.modules, {"anywidget": None}):
+            with self.assertRaisesRegex(ImportError, "pip install.*anywidget"):
+                _popout_image()
+
+    @unittest.skipUnless(importlib.util.find_spec("anywidget") is not None,
+                         "optional pop-out dependency not installed")
+    def test_popout_stream_status_rerun_and_borrowed_cleanup(self):
+        """Opt-in shares one frame widget and mirrors stop/error status without owning camera."""
+        from rasptank.notebook import show_camera
+
+        camera = FakeCamera()
+        camera.close = Mock()
+        with patch("IPython.display.display"):
+            view = show_camera(camera, fps=30, popout=True)
+            try:
+                wait_until(lambda: bool(view.image.value))
+                self.assertEqual(bytes(view.image.value), camera.capture().jpeg)
+                self.assertIn("Streaming frame", view.image.message)
+                self.assertIn("Pop out video", view.image._esm)
+                view.stop()
+                self.assertEqual(view.image.message, "Video stopped")
+                replacement = show_camera(camera, previous=view, popout=True)
+                replacement.close()
+                self.assertFalse(replacement._worker.is_alive())
+                camera.close.assert_not_called()
+            finally:
+                view.close()
+            stop = Mock()
+            view = show_camera(Mock(capture=Mock(side_effect=CameraError("lost"))),
+                               popout=True, on_disconnect=stop)
+            try:
+                wait_until(lambda: not view._worker.is_alive())
+                self.assertIn("lost", view.image.message)
+                stop.assert_called_once_with()
+            finally:
+                view.close()
+
+    def test_tank_forwards_popout_and_registers_view_for_cleanup(self):
+        """Facade forwards opt-in and still owns only its presentation handle."""
+        camera = FakeCamera()
+        camera.close = Mock()
+        with RaspTank(use_gpio=False, camera=camera) as tank:
+            with patch("rasptank.notebook.show_camera") as show:
+                view = tank.show_camera(popout=True)
+                show.assert_called_once_with(camera, fps=10, transform=None,
+                                             popout=True, on_disconnect=None)
+        view.close.assert_called_once_with()
+        camera.close.assert_not_called()
+
     @unittest.skipUnless(importlib.util.find_spec("ipywidgets") is not None
                          and importlib.util.find_spec("IPython") is not None,
                          "optional notebook dependencies not installed")
@@ -537,7 +592,7 @@ class TestNotebook(unittest.TestCase):
         from rasptank.notebook import show_camera
 
         camera = FakeCamera()
-        with patch("IPython.display.display"):
+        with patch("IPython.display.display"), patch.dict(sys.modules, {"anywidget": None}):
             view = show_camera(camera, fps=30)
             wait_until(lambda: bool(view.image.value))
             replacement = show_camera(camera, previous=view)

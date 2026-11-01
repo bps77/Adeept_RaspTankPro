@@ -74,8 +74,13 @@ shutdown drains IPC and closes the source; hung drivers are terminated/killed.
 Disabled mode never opens/invokes a source. Injected cameras remain borrowed.
 
 `notebook.show_camera`/`RaspTank.show_camera` return optional rate-limited widget
-handles; attached views close with the tank. `vision` has HSV color matching,
-annotations, a checksum-verified local Caffe MobileNet-SSD/VOC adapter and a
+handles; attached views close with the tank.
+`popout=True` adds a lazy anywidget browser button; inline remains the default.
+The pop-out shares one JPEG widget payload without another camera/server,
+mirrors stop/error status and closes on connected-frontend view cleanup.
+Closing its browser window does not stop capture or motors.
+`vision` has HSV color matching, annotations, a checksum-verified local
+Caffe MobileNet-SSD/VOC adapter and a
 process-bounded `find_object`; no automatic model downloads or motor outputs.
 OpenCV 4.x is required for Caffe; optional requirements and manual assets are
 documented in `docs/CAMERA_USAGE.md`.
@@ -92,7 +97,7 @@ shutdown. GPIO/process/OS failures still require a physical cutoff.
 
 ## Validation and remaining physical work
 
-Software `unittest` checks (136, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
+Software `unittest` checks (139, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic
