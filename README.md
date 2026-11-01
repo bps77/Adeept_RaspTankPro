@@ -99,6 +99,10 @@ its cell finishes. Camera-only `CameraController` does not open motors.
 Camera creation is opt-in and capture starts explicitly; imports remain inert.
 Older Bullseye Picamera2 is supported without the newer `flush` keyword;
 exposure metadata enforces frame freshness.
+Video stays inline by default; `show_camera(..., popout=True)` or
+`tank.show_camera(popout=True)` adds an optional browser pop-out button
+(requires anywidget). Both displays share the same stream; closing video does
+not stop the tank. See the [camera guide](docs/CAMERA_USAGE.md).
 `enable_camera` and an injected `camera` follow the existing ownership rules.
 
 `detect_color`, `detect_objects`, `annotate` and bounded `find_object` are

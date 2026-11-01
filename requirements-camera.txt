@@ -2,3 +2,5 @@
 numpy>=1.24
 opencv-python-headless>=4.8,<5
 ipywidgets>=8.0
+# Optional browser pop-out; ordinary inline video does not import this package.
+anywidget>=0.9,<1

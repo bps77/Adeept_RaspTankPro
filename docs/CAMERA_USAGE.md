@@ -92,6 +92,40 @@ Use `tank.stop()` for motion. Views show errors in their status widget;
 motion. A custom annotation transform must return nonempty JPEG bytes.
 Stuck transforms are reported on bounded close, not silently joined forever.
 
+### Optional browser pop-out
+
+Inline video remains the default. Install the optional widget in the **Pi
+notebook kernel environment** (or run `%pip install "anywidget>=0.9,<1"` in a
+notebook cell), then restart the kernel:
+
+```sh
+python -m pip install "anywidget>=0.9,<1"
+```
+
+```python
+view = show_camera(camera, fps=10, popout=True, previous=globals().get("view"))
+# Or, when controlling the tank:
+# view = tank.show_camera(fps=10, popout=True)
+```
+
+Click **Pop out video** beneath the inline image. It opens a separate window
+on the computer running your browser, not a native Pi desktop window.
+The browser may use a tab instead, or require permission to allow pop-ups.
+Nothing opens automatically. The window and inline image share one JPEG
+payload through the existing authenticated Jupyter widget connection; no
+extra camera, port, video server or public endpoint is opened. Requires a
+trusted notebook/frontend with working ipywidgets and anywidget support.
+
+Closing the pop-out leaves inline streaming and notebook controls running;
+click the button to reopen it. `view.stop()` freezes both presentations and
+shows stopped/error status; `view.close()`, tank cleanup or replacing the view
+also closes its pop-out while the frontend is connected. The window is
+**video only**: closing it is not an emergency stop and does not stop motors.
+Use `tank.stop()` and keep the physical cutoff ready. If the notebook connection
+is lost, the pop-out cannot receive new frames; motor leases remain independent.
+In `rasptank_camera_roaming.ipynb`, set `ENABLE_POPOUT = True` separately from
+the camera and motion opt-ins.
+
 The motor watchdog remains active independently of display updates. It does not
 rely on browser connection detection: a lost browser cannot renew expired
 manual commands. A read-only viewer disconnect need not end a finite roaming

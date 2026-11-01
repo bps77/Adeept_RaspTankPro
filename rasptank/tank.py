@@ -121,7 +121,7 @@ class RaspTank(ManagedController):
             raise ValueError("Enable or inject a camera first")
         return self.camera.start()
 
-    def show_camera(self, *, fps=10, transform=None):
+    def show_camera(self, *, fps=10, transform=None, popout=False):
         """Replace this tank's notebook view, leaving capture borrowed by presentation."""
         ensure_open(self)
         if self.camera is None:
@@ -129,7 +129,7 @@ class RaspTank(ManagedController):
         from .notebook import show_camera
         release([view.close for view in self._views])
         self._views = []
-        view = show_camera(self.camera, fps=fps, transform=transform,
+        view = show_camera(self.camera, fps=fps, transform=transform, popout=popout,
                            on_disconnect=self.stop if self._supervisor is not None else None)
         self._views.append(view)
         return view

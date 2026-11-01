@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Camera pop-out browser fixture</title>
+<div id="view"></div>
+<script type="module">
+import widget from "../../rasptank/camera_popout.js";
+
+// Serve the repository on localhost to exercise the real renderer without a Pi.
+const listeners = new Map();
+const state = { value: new DataView(new ArrayBuffer(0)), message: "Starting camera view" };
+const model = {
+  get: (key) => state[key],
+  on: (event, callback) => listeners.set(event, callback),
+  off: (event) => listeners.delete(event),
+};
+const cleanup = widget.render({ model, el: document.querySelector("#view") });
+window.fixture = {
+  async frame(color = "red") {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 20;
+    const context = canvas.getContext("2d");
+    context.fillStyle = color;
+    context.fillRect(0, 0, 20, 20);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg"));
+    state.value = new DataView(await blob.arrayBuffer());
+    listeners.get("change:value")?.();
+  },
+  status(message) {
+    state.message = message;
+    listeners.get("change:message")?.();
+  },
+  cleanup,
+  listenerCount: () => listeners.size,
+};
+await window.fixture.frame();
+</script>
+</html>
