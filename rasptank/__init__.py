@@ -16,6 +16,7 @@ from .hardware.imu import Mpu6050
 from .hardware.camera import CameraController, Frame
 from .autonomy import RoamPolicy, RoamingSession
 from .filters import KalmanFilter, PID
+from .stream import CameraStream
 from . import behaviors, system
 from .config import DEFAULT_SPEED
 
@@ -31,6 +32,7 @@ __all__ = [
     "Mpu6050",
     "CameraController",
     "Frame",
+    "CameraStream",
     "RoamPolicy",
     "RoamingSession",
     "KalmanFilter",

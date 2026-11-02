@@ -1,6 +1,6 @@
 # Adeept RaspTank Pro — Durable Memory and Working Notes
 
-Updated: 2026-11-01
+Updated: 2026-11-02
 
 ## Implemented code
 
@@ -95,9 +95,17 @@ recovery/duration are finite, no reverse/servo scan occurs. Watchdog is separate
 from perception; a hung observer prevents restart and is reported on bounded
 shutdown. GPIO/process/OS failures still require a physical cutoff.
 
+`CameraStream` and `RaspTank.start_camera_stream` optionally serve an HTTP
+video page on 127.0.0.1 only (default port 8765, random path), accessed through
+SSH forwarding. The page polls fresh JPEGs and hides the image on failure.
+No new camera, widget dependency or motor routes; capture is borrowed. The
+tank owns its HTTP presentation and wires supervised stop on capture failures.
+Notebook `USE_STREAM_URL` defaults off and takes precedence over pop-out.
+Close the HTTP handle explicitly; browser close is not a motor/capture stop.
+
 ## Validation and remaining physical work
 
-Software `unittest` checks (139, incl. process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
+Software `unittest` checks (146, incl. loopback HTTP, process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic

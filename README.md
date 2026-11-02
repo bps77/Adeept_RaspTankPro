@@ -103,6 +103,11 @@ Video stays inline by default; `show_camera(..., popout=True)` or
 `tank.show_camera(popout=True)` adds an optional browser pop-out button
 (requires anywidget). Both displays share the same stream; closing video does
 not stop the tank. See the [camera guide](docs/CAMERA_USAGE.md).
+If pop-ups are blocked, `CameraStream(camera, port=8765)` or
+`tank.start_camera_stream(port=8765)` provides a private loopback video URL.
+Open it manually through SSH port forwarding; see the
+[video URL instructions](docs/CAMERA_USAGE.md#video-url-without-browser-pop-ups-ssh-tunnel).
+The notebook option is `USE_STREAM_URL = True`; no optional widget is required.
 `enable_camera` and an injected `camera` follow the existing ownership rules.
 
 `detect_color`, `detect_objects`, `annotate` and bounded `find_object` are
