@@ -32,6 +32,7 @@ explicitly started and supervised. See [usage/setup](CAMERA_USAGE.md).
 |---|---|---|
 | `camera_opencv.py` Picamera2 capture | `CameraController`, `RaspTank.start_camera` | Isolated process, fresh immutable RGB/JPEG, bounded startup/shutdown; supports older Bullseye capture API with exposure-time checks; no legacy imports |
 | Notebook video | `notebook.show_camera`, `RaspTank.show_camera` | Nonblocking optional widgets, one latest frame; opt-in `popout=True` browser window shares JPEG payload (anywidget); camera remains borrowed |
+| Standalone video URL | `CameraStream`, `RaspTank.start_camera_stream` | Opt-in loopback-only HTTP page polls fresh JPEGs; SSH forwarding, random URL path, no new capture or motor routes; no widget dependency |
 | `camera_opencv.py` HSV color search | `vision.detect_color`, `hsv_target`, `annotate` | Detection only; no motor/servo/light side effects |
 | Semantic class identification | `vision.MobileNetSSD`, `detect_objects`, `find_object` | Verified explicit local VOC model; bounded search process; custom detector contract |
 | Fused room roaming | `FloorObserver`, `RoamPolicy`, `RaspTank.start_roaming` | Calibrated corridor and range both veto forward; finite pulses/turn recovery/duration, no reverse/SLAM |

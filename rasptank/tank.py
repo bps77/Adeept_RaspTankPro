@@ -134,6 +134,24 @@ class RaspTank(ManagedController):
         self._views.append(view)
         return view
 
+    def start_camera_stream(self, *, port=8765, fps=10, transform=None):
+        """Serve a loopback video URL; replace this tank's existing presentation.
+
+        Capture must already be started. The tank owns this HTTP handle, not an
+        injected camera. Supervised motor commands stop on capture failures.
+        """
+        ensure_open(self)
+        if self.camera is None:
+            raise ValueError("Enable or inject a camera first")
+        from .stream import CameraStream
+        release([view.close for view in self._views])
+        self._views = []
+        stream = CameraStream(
+            self.camera, port=port, fps=fps, transform=transform,
+            on_disconnect=self.stop if self._supervisor is not None else None)
+        self._views.append(stream)
+        return stream
+
     def start_roaming(self, *, observer, policy=None):
         """Start finite supervised roaming using fresh camera/range data; never autostart camera.
 

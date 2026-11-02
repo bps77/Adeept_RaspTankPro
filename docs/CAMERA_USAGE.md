@@ -92,6 +92,58 @@ Use `tank.stop()` for motion. Views show errors in their status widget;
 motion. A custom annotation transform must return nonempty JPEG bytes.
 Stuck transforms are reported on bounded close, not silently joined forever.
 
+### Video URL without browser pop-ups (SSH tunnel)
+
+Use this instead of a widget/pop-out if your browser blocks new windows. It
+needs no anywidget dependency. On your **laptop/desktop**, leave this running:
+
+```sh
+ssh -N -L 8765:127.0.0.1:8765 carson@raspberrypi
+```
+
+In the **Pi notebook**, with the existing camera already started:
+
+```python
+from rasptank import CameraStream
+
+# Close the prior handle before rerunning to release its listening port.
+if globals().get("view") is not None:
+    view.close()
+view = CameraStream(camera, port=8765, fps=10)
+print(view.url)
+```
+
+Copy the printed URL (including its random path) into your laptop browser's
+address bar. Keep the notebook kernel, camera and SSH tunnel running. Do not
+replace `127.0.0.1` with the Pi address: the listener is intentionally bound
+only to Pi loopback. If local port 8765 is occupied, forward a different local
+port, e.g. `-L 8766:127.0.0.1:8765`, and change only the URL's port to 8766.
+SSH must permit TCP forwarding. On VS Code Remote SSH, forwarding remote port
+8765 through the Ports panel is an alternative.
+
+The supplied notebook exposes `USE_STREAM_URL = False`; set it to `True`
+before the camera-preview cell to use this mode for preview and later tank
+views. It takes precedence over `ENABLE_POPOUT`. Hardware remains opt-in.
+
+For an existing tank, use `view = tank.start_camera_stream(port=8765, fps=10)`
+instead. It replaces that tank's previous presentation and is closed by
+`tank.close()`. Capture failures stop supervised motion when `command_timeout`
+is configured, just like widget views.
+
+The URL serves a video page polling fresh JPEGs (not RTSP/MJPEG). It reuses the
+same capture process and latest-frame slot, starts no second camera, and has
+no motor-control routes. `transform=...` accepts the same JPEG-producing
+annotation function as widget views. Capture/transform failures hide the last
+image and show an error; `view.status()` exposes the most recent error.
+Requested `fps` is a maximum polling rate, not guaranteed frame rate.
+
+`view.close()` releases the HTTP listener, **not the borrowed camera**.
+Closing a browser tab does not stop the tank or capture; use `tank.stop()`
+and the notebook cleanup cell. A standalone `CameraStream` handle must be
+closed explicitly. The random URL changes when recreated: treat it as private.
+There is no HTTP login or TLS; loopback binding and SSH provide the intended
+access boundary. Do not expose it through a public proxy or tunnel.
+
 ### Optional browser pop-out
 
 Inline video remains the default. Install the optional widget in the **Pi
