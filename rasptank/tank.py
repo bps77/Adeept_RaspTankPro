@@ -12,6 +12,7 @@ from .hardware.line_sensors import LineSensors
 from .hardware.imu import Mpu6050
 from .hardware.camera import CameraController
 from .autonomy import DriveSupervisor, RoamPolicy
+from .arm import RobotArm
 
 
 class RaspTank(ManagedController):
@@ -45,6 +46,8 @@ class RaspTank(ManagedController):
         self._owned = []
         self._supervisor = None
         self._views = []
+        self._controls = []
+        self.arm = None
         self.motors = self.servos = self.ultrasonic = self.leds = self.display = None
         self.switches = self.line_sensors = self.imu = None
         self.camera = None
@@ -66,6 +69,8 @@ class RaspTank(ManagedController):
                     device = factory(use_gpio=use_gpio)
                     self._owned.append(device)
                 setattr(self, name, device)
+            if self.servos is not None:
+                self.arm = RobotArm(self.servos)
             if command_timeout is not None:
                 self._supervisor = DriveSupervisor(self.motors, command_timeout)
         except BaseException:
@@ -166,6 +171,20 @@ class RaspTank(ManagedController):
         return self._supervisor.start(self.camera, self.ultrasonic, observer,
                                       RoamPolicy() if policy is None else policy)
 
+    def show_controls(self, *, speed=15):
+        """Replace the notebook drive/arm GUI; requires opt-in command_timeout.
+
+        Controls borrow this tank and close with it. Displaying them never moves
+        motors/servos; each drive click expires through the existing watchdog.
+        """
+        ensure_open(self)
+        from .notebook import TankControls
+        release([controls.close for controls in self._controls])
+        self._controls = []
+        controls = TankControls(self, speed=speed)
+        self._controls.append(controls)
+        return controls
+
     def stop_roaming(self):
         """Cancel autonomous output and stop motors, including if no session is active."""
         return self.stop()
@@ -191,6 +210,7 @@ class RaspTank(ManagedController):
         self._closed = True
         # Stop owned drivetrain first, then attempt every remaining resource.
         actions = ([self._supervisor.close] if self._supervisor is not None else [])
+        actions.extend(controls.close for controls in self._controls)
         actions.extend(view.close for view in self._views)
         actions.extend(device.close for device in self._owned)
         release(actions)

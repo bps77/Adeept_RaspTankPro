@@ -10,6 +10,7 @@ hardware**; all checks are mock-based (`python -m unittest discover -s tests`).
 |---|---|---|
 | `move.py` | `MotorController`, `RaspTank.move/forward/...` | PWM starts at 0 duty, not 100% |
 | `servo.py`, `RPIservo.py` (basic) | `ServoController` | Explicit pulses; no threads, no calibration file |
+| `webServer.py` named servo controls | `RobotArm`, `RaspTank.arm` | Borrowed controller; pan/arm/hand/gripper/camera = 0/1/2/3/4; raw web-control pulse signs, intentionally distinct from servo.py helpers |
 | `ultra.py` | `UltrasonicSensor` | Bounded timeouts; metres, 340 m/s |
 | `LED.py` | `LEDStrip.color_wipe` | One frame, not per-pixel animation |
 | `robotLight.py` setSomeColor/police/breath | `LEDStrip.set_pixels/police/breath/play` | Bounded cycles, caller owns timing; police lights pixels 0..12 |
@@ -32,6 +33,7 @@ explicitly started and supervised. See [usage/setup](CAMERA_USAGE.md).
 |---|---|---|
 | `camera_opencv.py` Picamera2 capture | `CameraController`, `RaspTank.start_camera` | Isolated process, fresh immutable RGB/JPEG, bounded startup/shutdown; supports older Bullseye capture API with exposure-time checks; no legacy imports |
 | Notebook video | `notebook.show_camera`, `RaspTank.show_camera` | Nonblocking optional widgets, one latest frame; opt-in `popout=True` browser window shares JPEG payload (anywidget); camera remains borrowed |
+| Notebook drive/servo GUI | `notebook.TankControls`, `RaspTank.show_controls` | Disarmed ipywidgets, watchdog-limited drive clicks, explicit Apply/step servo commands; no continuous driving or extra control server; controls borrow the tank |
 | Standalone video URL | `CameraStream`, `RaspTank.start_camera_stream` | Opt-in loopback-only HTTP page polls fresh JPEGs; SSH forwarding, random URL path, no new capture or motor routes; no widget dependency |
 | `camera_opencv.py` HSV color search | `vision.detect_color`, `hsv_target`, `annotate` | Detection only; no motor/servo/light side effects |
 | Semantic class identification | `vision.MobileNetSSD`, `detect_objects`, `find_object` | Verified explicit local VOC model; bounded search process; custom detector contract |

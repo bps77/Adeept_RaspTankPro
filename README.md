@@ -19,6 +19,7 @@ the existing history and attribution when doing so.
 | Path | Purpose |
 |---|---|
 | `rasptank/tank.py` | `RaspTank` façade and ownership rules |
+| `rasptank/arm.py` | Named pan/arm/hand/gripper/camera joints over one borrowed servo controller |
 | `rasptank/hardware/` | Controllers: motors, servos, ultrasonic, LEDs, OLED, switches, line sensors, IMU, camera; `_lifecycle.py` shared helpers |
 | `rasptank/behaviors.py` | Single-step line follow, obstacle avoidance, radar scan, steady stabiliser |
 | `rasptank/filters.py`, `system.py` | `KalmanFilter`, `PID`; CPU/GPU temperature and load |
@@ -71,14 +72,41 @@ pieces: `LEDStrip.police()/breath()/set_pixels()`, `rasptank.behaviors`
 `SteadyStabilizer`), `KalmanFilter`, `PID` and `rasptank.system`. Behaviors are
 single bounded steps: your code owns the loop and must stop the motors on exit.
 See [docs/FEATURES.md](docs/FEATURES.md) for legacy parity, unported features
-and ideas. Web/GUI features and legacy camera-driven servo/motion modes remain
-legacy-only; the new independent camera API is described below.
+and ideas. The legacy network web/desktop GUIs and camera-driven servo/motion
+modes remain legacy-only; notebook drive/arm widgets are available below.
 
 ### Notebook camera, object identification and supervised roaming
 
 See [docs/CAMERA_USAGE.md](docs/CAMERA_USAGE.md) and the hardware-disabled
 `notebooks/rasptank_camera_roaming.ipynb`. Select a **Pi kernel**, including
 Remote SSH/tunneled Jupyter, and stop other hardware owners first.
+
+The demo starts with one configuration cell, followed by video, arm/tank setup
+and a widget GUI. Set `RUN_CONTROLS = ENABLE_SERVOS = True`, leaving
+`USE_HARDWARE = False`, to preview symbolic drive and servo controls. For hardware,
+complete the notebook's stand/cutoff and servo-clearance gates first.
+
+```python
+tank = RaspTank(use_gpio=False, enable_servos=True, command_timeout=0.5)
+arm = tank.arm  # wraps tank.servos; construction never centers/moves joints
+controls = tank.show_controls(speed=15)  # disarmed; separate cell from cleanup
+# Optional explicit Python commands after verifying safe pulses:
+# arm.set_pulse("arm", safe_ticks)
+# arm.step("grab", 5)
+# Run tank.close() in a cleanup cell; support the arm before releasing servos.
+```
+
+The GUI has speed and forward/backward/left/right/STOP motor controls, plus
+five absolute tick sliders with Apply buttons and named servo step buttons.
+Dragging sliders never moves hardware. Each drive click expires through the
+watchdog; there is no continuous held-key driving or automatic lease renewal.
+Servo actions stop manual/autonomous drive first. Closing controls stops motors
+but leaves the borrowed tank and servo holding torque intact.
+The arm wrapper follows **`server/webServer.py`**: pan=0, arm=1, hand=2,
+gripper=3, camera tilt=4, with its raw pulse action signs. This intentionally
+differs from `server/servo.py` helper labels/directions; existing
+`ServoController.move_relative` behavior is unchanged. Positions are assumed/
+commanded ticks, not physical feedback. Verify linkage clearance and safe pulses.
 
 ```python
 from rasptank import RaspTank
