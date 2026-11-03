@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, call, patch
 
 from rasptank.config import (
-    DIR_BACKWARD, DIR_FORWARD, LEFT_BACKWARD, LEFT_FORWARD, MOTOR_A_EN,
+    DIR_BACKWARD, DIR_FORWARD, DRIVE_DIRECTION_REVERSED, LEFT_BACKWARD, LEFT_FORWARD, MOTOR_A_EN,
     MOTOR_A_PIN1, MOTOR_A_PIN2, MOTOR_B_EN, MOTOR_B_PIN1, MOTOR_B_PIN2,
     RIGHT_BACKWARD, RIGHT_FORWARD,
 )
@@ -32,6 +32,7 @@ class TestMotorController(unittest.TestCase):
                           MOTOR_B_PIN1, MOTOR_B_PIN2), (4, 17, 26, 21, 27, 18))
         self.assertEqual((DIR_FORWARD, DIR_BACKWARD, LEFT_FORWARD, LEFT_BACKWARD,
                           RIGHT_FORWARD, RIGHT_BACKWARD), (0, 1, 1, 0, 0, 1))
+        self.assertTrue(DRIVE_DIRECTION_REVERSED)
 
     def test_setup_initializes_expected_pins(self):
         self.controller.setup()
@@ -65,11 +66,11 @@ class TestMotorController(unittest.TestCase):
         self.assertEqual(controller.pwm_a.ChangeDutyCycle.call_args_list, [call(0), call(speed)])
         self.assertEqual(controller.pwm_b.ChangeDutyCycle.call_args_list, [call(0), call(speed)])
 
-    def test_forward_uses_original_drive_logic(self):
-        self.assert_drive("forward", 60, (1, 0, 1, 0))
+    def test_forward_uses_observed_chassis_polarity(self):
+        self.assert_drive("forward", 60, (0, 1, 0, 1))
 
-    def test_backward_uses_original_drive_logic(self):
-        self.assert_drive("backward", 50, (0, 1, 0, 1))
+    def test_backward_uses_observed_chassis_polarity(self):
+        self.assert_drive("backward", 50, (1, 0, 1, 0))
 
     def test_turn_left_uses_original_turn_logic(self):
         self.assert_drive("turn_left", 45, (1, 0, 0, 1))
@@ -79,12 +80,12 @@ class TestMotorController(unittest.TestCase):
 
     def test_all_move_combinations_keep_legacy_stopped_inner_track(self):
         expected = {
-            ("forward", "no"): [(1, 1, 50), (1, 0, 50)],
-            ("forward", "right"): [(0, 0, 30), (1, 0, 50)],
-            ("forward", "left"): [(1, 1, 50), (0, 1, 30)],
-            ("backward", "no"): [(1, 0, 50), (1, 1, 50)],
-            ("backward", "right"): [(0, 1, 30), (1, 1, 50)],
-            ("backward", "left"): [(1, 0, 50), (0, 0, 30)],
+            ("forward", "no"): [(1, 0, 50), (1, 1, 50)],
+            ("forward", "right"): [(0, 1, 30), (1, 1, 50)],
+            ("forward", "left"): [(1, 0, 50), (0, 0, 30)],
+            ("backward", "no"): [(1, 1, 50), (1, 0, 50)],
+            ("backward", "right"): [(0, 0, 30), (1, 0, 50)],
+            ("backward", "left"): [(1, 1, 50), (0, 1, 30)],
             ("no", "right"): [(1, 0, 50), (1, 0, 50)],
             ("no", "left"): [(1, 1, 50), (1, 1, 50)],
         }
@@ -109,7 +110,7 @@ class TestMotorController(unittest.TestCase):
         controller.move(50, "forward", "right")
         self.assertEqual(controller.pwm_b.ChangeDutyCycle.call_args_list, [call(0)])
         self.assertEqual(self.gpio.output.call_args_list,
-                         [call(27, 0), call(18, 0), call(17, 0), call(26, 1), call(21, 0)])
+                         [call(27, 0), call(18, 0), call(17, 0), call(26, 0), call(21, 1)])
 
     def test_pwm_is_started_once_at_zero_not_on_each_command(self):
         controller = self.setup()

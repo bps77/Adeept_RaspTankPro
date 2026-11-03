@@ -8,7 +8,7 @@ hardware**; all checks are mock-based (`python -m unittest discover -s tests`).
 
 | Legacy source | New API | Notes / deliberate differences |
 |---|---|---|
-| `move.py` | `MotorController`, `RaspTank.move/forward/...` | PWM starts at 0 duty, not 100% |
+| `move.py` | `MotorController`, `RaspTank.move/forward/...` | PWM starts at 0 duty, not 100%; `DRIVE_DIRECTION_REVERSED` corrects this chassis' observed straight-drive polarity while retaining raw left/right signals |
 | `servo.py`, `RPIservo.py` (basic) | `ServoController` | Explicit pulses; no threads, no calibration file |
 | `webServer.py` named servo controls | `RobotArm`, `RaspTank.arm` | Borrowed controller; pan/arm/hand/gripper/camera = 0/1/2/3/4; raw web-control pulse signs, intentionally distinct from servo.py helpers |
 | `ultra.py` | `UltrasonicSensor` | Bounded timeouts; metres, 340 m/s |

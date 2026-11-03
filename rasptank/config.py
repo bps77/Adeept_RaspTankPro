@@ -13,6 +13,9 @@ LEFT_BACKWARD = 0
 RIGHT_FORWARD = 0
 RIGHT_BACKWARD = 1
 
+# The chassis' observed straight-drive polarity is opposite server/move.py.
+DRIVE_DIRECTION_REVERSED = True
+
 # move.py's manual example uses 60; its move() default radius is 0.6.
 DEFAULT_SPEED = 60
 DEFAULT_TURN_RADIUS = 0.6

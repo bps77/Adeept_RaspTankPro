@@ -23,7 +23,7 @@ the existing history and attribution when doing so.
 | `rasptank/hardware/` | Controllers: motors, servos, ultrasonic, LEDs, OLED, switches, line sensors, IMU, camera; `_lifecycle.py` shared helpers |
 | `rasptank/behaviors.py` | Single-step line follow, obstacle avoidance, radar scan, steady stabiliser |
 | `rasptank/filters.py`, `system.py` | `KalmanFilter`, `PID`; CPU/GPU temperature and load |
-| `rasptank/config.py`, `exceptions.py` | Wiring/range constants; error types |
+| `rasptank/config.py`, `exceptions.py` | Wiring/range constants (including observed straight-drive polarity); error types |
 | `rasptank/notebook.py`, `vision.py`, `autonomy.py` | Optional video widgets, local detection, fused roaming and driving supervision |
 | `server/`, `client/` | Unchanged legacy code (camera, web UI, GUI) |
 | `docs/FEATURES.md` | Legacy parity, unported features, roadmap |
@@ -160,9 +160,11 @@ Software cannot stop motors after total process/OS failure or hung GPIO.
 ### Wiring and commands
 
 * Motors use BCM A/right enable **4**, direction **26/21**; B/left enable
-  **17**, direction **27/18**, with PWM at 1000 Hz. Forward sets both first
-  direction pins high and second pins low; backward reverses them. Raw left
-  forward is direction `1`, raw right forward is `0`, as in `server/move.py`.
+  **17**, direction **27/18**, with PWM at 1000 Hz. On this chassis, the
+  observed straight-drive polarity is opposite `server/move.py`: the API's
+  `forward`/`backward` translation mapping is reversed with
+  `DRIVE_DIRECTION_REVERSED = True`. Turn-only left/right controls are unchanged.
+  Raw `motor_left`/`motor_right` polarity values remain the legacy 0/1 signals.
 * `forward`, `backward`, `turn_left`, `turn_right` default to speed **60**
   (the legacy manual example). `move(speed, direction, turn, radius=0.6)` accepts
   directions `forward/backward/no` and turns `left/right/no`. Speed is finite

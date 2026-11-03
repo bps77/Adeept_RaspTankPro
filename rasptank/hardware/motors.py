@@ -1,8 +1,4 @@
-"""Motor abstraction for the Adeept RaspTank Pro.
-
-This module preserves the behavior of the original `server/move.py` logic while
-making it easier to use in a structured Python API.
-"""
+"""Motor abstraction with the chassis-specific polarity correction."""
 
 from __future__ import annotations
 
@@ -15,6 +11,7 @@ from ..config import (
     DEFAULT_TURN_RADIUS,
     DIR_BACKWARD,
     DIR_FORWARD,
+    DRIVE_DIRECTION_REVERSED,
     LEFT_BACKWARD,
     LEFT_FORWARD,
     MOTOR_A_EN,
@@ -30,11 +27,7 @@ from ..exceptions import MotorHardwareError
 
 
 class MotorController(ManagedController):
-    """Wrap the original robot motor logic while keeping the same GPIO behavior.
-
-    This class intentionally mirrors the original `move.py` implementation so the
-    refactor remains transparent and safe.
-    """
+    """Wrap legacy track logic while applying configured straight-drive polarity."""
 
     def __init__(self, use_gpio: bool = True, *, gpio=None):
         """Set up stopped motors if use_gpio; gpio may be an injected RPi.GPIO stand-in."""
@@ -137,11 +130,7 @@ class MotorController(ManagedController):
         return self._motor(status, direction, speed, left=False)
 
     def move(self, speed: int, direction: str, turn: str, radius: float = DEFAULT_TURN_RADIUS) -> None:
-        """Move the robot with the original direction/turn rules.
-
-        This function intentionally matches the original implementation to keep the
-        refactor behaviorally transparent.
-        """
+        """Move using chassis-corrected forward/backward and legacy turn-only rules."""
         ensure_open(self)
         number(speed, 0, 100, "speed")
         number(radius, 0, 1, "radius")
@@ -149,6 +138,9 @@ class MotorController(ManagedController):
             raise ValueError("radius must be greater than 0")
         if direction not in ("forward", "backward", "no") or turn not in ("left", "right", "no"):
             raise ValueError("Invalid movement direction or turn")
+        if DRIVE_DIRECTION_REVERSED:
+            direction = {"forward": "backward", "backward": "forward"}.get(
+                direction, direction)
         if direction == "forward":
             if turn == "right":
                 self.motor_left(0, LEFT_BACKWARD, int(speed * radius))

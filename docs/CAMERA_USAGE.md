@@ -53,6 +53,10 @@ Separate notebook cells may issue `tank.forward(15)`, `tank.turn_left(15)` or
 `tank.stop()` cancels autonomous output before stopping; direct
 `tank.motors.*` calls bypass arbitration and the watchdog.
 
+On this chassis `tank.forward()` and `tank.backward()` use the observed corrected
+straight-drive polarity, opposite the original legacy map. The turn-only API
+remains unchanged. The notebook and supervisor use this same controller mapping.
+
 For camera-only work without opening motors:
 
 ```python

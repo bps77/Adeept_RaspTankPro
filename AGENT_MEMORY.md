@@ -13,9 +13,11 @@ failures. It is not a replacement for every legacy server feature.
   enabled controllers are constructed or motor/sensor `setup()` is explicit.
 * `use_gpio=False` disables all hardware access, including I2C and LEDs.
   Dry-run sensor reads raise instead of inventing data.
-* Motor mapping and movement direction/turn decisions follow `server/move.py`.
-  Both PWM outputs start once at zero duty. Driving turns stop the inner track;
-  radius is validated but does not implement curved-drive behavior.
+* Motor pins and track logic follow `server/move.py`; this chassis sets
+  `DRIVE_DIRECTION_REVERSED = True` to correct observed straight-drive polarity
+  in `MotorController.move` and line following. Turn-only commands and raw
+  `motor_left/right` signals remain unchanged. Both PWM outputs start at zero;
+  driving turns stop the inner track; radius does not curve-drive.
 * Servo channels 0..4 retain `server/servo.py` ranges/direction flags. The
   PCA9685 address/bus/frequency follow `server/RPIservo.py`: 0x40/1/50 Hz.
   No servo channel is commanded at construction; pulse/relative/center
