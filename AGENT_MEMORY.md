@@ -1,6 +1,6 @@
 # Adeept RaspTank Pro — Durable Memory and Working Notes
 
-Updated: 2026-11-02
+Updated: 2026-11-03
 
 ## Implemented code
 
@@ -13,13 +13,19 @@ failures. It is not a replacement for every legacy server feature.
   enabled controllers are constructed or motor/sensor `setup()` is explicit.
 * `use_gpio=False` disables all hardware access, including I2C and LEDs.
   Dry-run sensor reads raise instead of inventing data.
-* Motor mapping and movement direction/turn decisions follow `server/move.py`.
-  Both PWM outputs start once at zero duty. Driving turns stop the inner track;
-  radius is validated but does not implement curved-drive behavior.
+* Motor pins and track logic follow `server/move.py`; this chassis sets
+  `DRIVE_DIRECTION_REVERSED = True` to correct observed straight-drive polarity
+  in `MotorController.move` and line following. Turn-only commands and raw
+  `motor_left/right` signals remain unchanged. Both PWM outputs start at zero;
+  driving turns stop the inner track; radius does not curve-drive.
 * Servo channels 0..4 retain `server/servo.py` ranges/direction flags. The
   PCA9685 address/bus/frequency follow `server/RPIservo.py`: 0x40/1/50 Hz.
   No servo channel is commanded at construction; pulse/relative/center
   operations are explicit. Close releases only commanded channels.
+* `RobotArm`/`RaspTank.arm` borrow the existing servo controller, using the
+  webServer.py layout pan/arm/hand/gripper/camera=0/1/2/3/4 and raw web-control
+  pulse signs. This intentionally differs from servo.py helper labels/signs;
+  low-level `ServoController.move_relative` is unchanged.
 * Ultrasonic uses BCM 11/8, monotonic deadlines on both echo waits, and metres
   rounded to two decimals with the legacy 340 m/s constant.
 * LEDs show one synchronous frame; OLED shows two lines, not the legacy
@@ -105,12 +111,24 @@ Close the HTTP handle explicitly; browser close is not a motor/capture stop.
 
 ## Validation and remaining physical work
 
-Software `unittest` checks (146, incl. loopback HTTP, process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
+Software `unittest` checks (including loopback HTTP, process/image/widget and opt-in model fixtures) cover exact pin/PWM/direction behavior, ranges,
 disabled operation, lazy imports, echo deadlines, ownership, partial
 initialization and cleanup failure handling. Both existing notebooks are
 valid JSON/Python and default to hardware-independent discovery/symbolic
 checks. Hardware actions require disabled-by-default opt-in flags and
 `finally` cleanup.
+
+The camera demo notebook now has top-cell configuration followed by video,
+arm/tank setup and a widget GUI, then optional vision/manual/roaming cells.
+`TankControls`/`RaspTank.show_controls` import ipywidgets lazily, start disarmed,
+and borrow a tank configured with `command_timeout`. Drive clicks issue one
+leased command, never continuously renew after frontend loss. Servo sliders
+only stage ticks; Apply/step actions stop drive/autonomy first. Errors stay
+visible and disarm controls. Closing/replacing the GUI stops motors and closes
+widgets, not the borrowed tank/camera/servo hardware. Tank close also closes its
+attached controls. Actual widget callbacks, range rejection, watchdog expiry,
+ownership and notebook dry-run/rerun paths are covered by software tests;
+physical direction/calibration and browser/frontend acceptance remain pending.
 
 No physical Raspberry Pi camera/roaming tests have been performed by this agent.
 An actual pinned local MobileNet-SSD inference was executed on synthetic images,

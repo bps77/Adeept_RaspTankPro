@@ -53,6 +53,10 @@ Separate notebook cells may issue `tank.forward(15)`, `tank.turn_left(15)` or
 `tank.stop()` cancels autonomous output before stopping; direct
 `tank.motors.*` calls bypass arbitration and the watchdog.
 
+On this chassis `tank.forward()` and `tank.backward()` use the observed corrected
+straight-drive polarity, opposite the original legacy map. The turn-only API
+remains unchanged. The notebook and supervisor use this same controller mapping.
+
 For camera-only work without opening motors:
 
 ```python
@@ -91,6 +95,75 @@ Use `tank.stop()` for motion. Views show errors in their status widget;
 `view.status()` also reports them. Tank-attached view errors stop supervised
 motion. A custom annotation transform must return nonempty JPEG bytes.
 Stuck transforms are reported on bounded close, not silently joined forever.
+
+### Demo configuration, arm and widget GUI
+
+`notebooks/rasptank_camera_roaming.ipynb` starts with all configuration in its
+top cell, then starts video, sets up the arm/tank, and displays a widget GUI.
+Optional color/object/manual-motion/roaming cells follow, with final cleanup.
+Defaults are hardware-free. To preview the GUI without a Pi, set
+`RUN_CONTROLS = ENABLE_SERVOS = True`, leaving `USE_HARDWARE = False`.
+For real use, enable `USE_HARDWARE`, complete `STAND_AND_POWER_CUTOFF_READY`
+and `SERVO_CLEARANCE_VERIFIED`, and enable `RUN_CAMERA` for video.
+The initial video preview opens only the camera; tank setup reuses that capture
+and attaches presentation errors to the supervised motor stop.
+
+```python
+from rasptank import RaspTank
+
+tank = RaspTank(use_gpio=False, enable_servos=True, command_timeout=0.5)
+arm = tank.arm
+controls = tank.show_controls(speed=15)  # nonblocking; no initial movement
+# Separate cleanup cell: tank.close()
+```
+
+Controls require ipywidgets in the notebook kernel even when video uses an HTTP
+URL. Commands travel through the existing authenticated Jupyter connection,
+not a new network control endpoint. Displaying controls starts disarmed and
+does not command motors or servos. Enable driving/servos explicitly.
+Drive buttons send one watchdog-limited command per click. No background worker
+renews leases; the motors stop after `COMMAND_TIMEOUT` if the frontend disconnects.
+STOP motors also cancels roaming, but does not release servo holding torque.
+
+Five joint sliders stage absolute integer tick values: only **Apply** outputs
+a pulse. Named action buttons perform one step using the selected tick step
+size and the controller's latest commanded/assumed position. All servo GUI
+actions stop motors/autonomy first. Range/hardware errors stop motors, disarm
+controls and remain visible in `controls.message.value`; faults are not reset
+automatically. Rerunning replaces/closes the prior GUI and stops motors without
+closing the tank or camera. `controls.close()` has the same ownership rules.
+
+`RobotArm` borrows `tank.servos`; it opens no second PCA9685 and has no
+independent hardware cleanup. Its named joint map and action signs follow
+**webServer.py/RPIservo.py**, not servo.py's different helper labels:
+
+| Joint | Channel | Action increasing pulse | Action decreasing pulse |
+|---|---|---|---|
+| pan | 0 | `look_left` | `look_right` |
+| arm | 1 | `arm_up` | `arm_down` |
+| hand | 2 | `hand_up` | `hand_down` |
+| gripper | 3 | `loosen` | `grab` |
+| camera tilt (`camera`) | 4 | `camera_up` | `camera_down` |
+
+`arm.set_pulse(joint, pulse)`, `arm.move_relative(joint, ticks)` (raw signed
+ticks), `arm.step(action, ticks=10)`, `arm.limits(joint)` and
+`arm.center(joint)` share existing range/open-state validation.
+`ServoController.move_relative` still honors its original direction flags.
+Pulses are **ticks, not degrees**; initial 300 positions are assumptions, not
+feedback. Verify channel mapping/linkage clearance and command a known-safe
+absolute pulse before relative steps. Centering is explicit motion to transient
+calibration, not a known-safe home. No calibration files are read/written.
+The optional arm-example cell accepts only your explicit `ARM_SAFE_POSE` and
+validates its full contents before the first output; it is not a synchronized
+or collision-planned trajectory.
+
+Stop drive/autonomy before direct Python arm commands. Fix the camera/range
+sensor in the verified pose for roaming, and recalibrate after servo changes
+that alter sensor alignment. The roaming cell closes the GUI before starting.
+Final cleanup stops controls/tank, releases commanded servo channels (support
+the arm first), closes presentation, then closes the caller-owned camera.
+Physical calibration, Pi latency and actual browser/frontend acceptance remain
+unverified by software-only widget tests.
 
 ### Video URL without browser pop-ups (SSH tunnel)
 

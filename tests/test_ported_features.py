@@ -128,23 +128,23 @@ class TestBehaviors(unittest.TestCase):
         motors = Mock()
         mark = behaviors.line_follow_step(motors, (0, 1, 0), 0, sleep=lambda s: None)
         self.assertEqual(mark, 1)
-        self.assertEqual(motors.mock_calls, [call.motor_left(1, 1, 80), call.motor_right(1, 0, 80)])
+        self.assertEqual(motors.mock_calls, [call.motor_left(1, 0, 80), call.motor_right(1, 1, 80)])
         motors.reset_mock()
         sleeps = []
         mark = behaviors.line_follow_step(motors, (1, 0, 0), 1, sleep=sleeps.append)
         self.assertEqual(mark, 3)
         self.assertEqual(motors.mock_calls, [
-            call.motor_left(1, 0, 80), call.motor_right(1, 1, 80),
-            call.motor_left(1, 1, 0), call.motor_right(1, 0, 100)])
+            call.motor_left(1, 1, 80), call.motor_right(1, 0, 80),
+            call.motor_left(1, 0, 0), call.motor_right(1, 1, 100)])
         self.assertEqual(sleeps, [0.03, 0.02, 0.1])
 
     def test_line_no_kick_when_mark_unchanged_and_lost_line(self):
         motors = Mock()
         behaviors.line_follow_step(motors, (0, 0, 1), 5, sleep=lambda s: None)
-        self.assertEqual(motors.mock_calls, [call.motor_left(1, 1, 100), call.motor_right(1, 0, 0)])
+        self.assertEqual(motors.mock_calls, [call.motor_left(1, 0, 100), call.motor_right(1, 1, 0)])
         motors.reset_mock()
         self.assertEqual(behaviors.line_follow_step(motors, (0, 0, 0), 2, sleep=lambda s: None), 2)
-        self.assertEqual(motors.mock_calls, [call.motor_left(1, 1, 0), call.motor_right(1, 0, 100)])
+        self.assertEqual(motors.mock_calls, [call.motor_left(1, 0, 0), call.motor_right(1, 1, 100)])
         with self.assertRaises(ValueError):
             behaviors.line_follow_step(motors, (1, 1), 0)
 

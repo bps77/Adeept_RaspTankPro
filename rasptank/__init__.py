@@ -17,6 +17,7 @@ from .hardware.camera import CameraController, Frame
 from .autonomy import RoamPolicy, RoamingSession
 from .filters import KalmanFilter, PID
 from .stream import CameraStream
+from .arm import RobotArm
 from . import behaviors, system
 from .config import DEFAULT_SPEED
 
@@ -24,6 +25,7 @@ __all__ = [
     "RaspTank",
     "MotorController",
     "ServoController",
+    "RobotArm",
     "UltrasonicSensor",
     "LEDStrip",
     "OledDisplay",

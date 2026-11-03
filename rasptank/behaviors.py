@@ -1,14 +1,16 @@
 """Bounded, synchronous single-step ports of server/functions.py and findline.py.
 
 Each function performs exactly one control step and returns; callers own the loop,
-timing and shutdown (no threads). Motor outputs use the raw legacy motor_left/right
-polarity constants, and any failure stops the drivetrain before re-raising.
+timing and shutdown (no threads). Raw motor polarity stays legacy; line-follow
+translation applies the configured chassis direction correction. Failures stop
+the drivetrain before re-raising.
 """
 
 import time
 
-from .config import (LEFT_BACKWARD, LEFT_FORWARD, RADAR_SERVO, RIGHT_BACKWARD,
-                     RIGHT_FORWARD, SERVO_RANGES, STEADY_SERVO)
+from .config import (DRIVE_DIRECTION_REVERSED, LEFT_BACKWARD, LEFT_FORWARD,
+                     RADAR_SERVO, RIGHT_BACKWARD, RIGHT_FORWARD, SERVO_RANGES,
+                     STEADY_SERVO)
 from .exceptions import ControllerClosedError, SensorTimeoutError
 from .filters import KalmanFilter
 
@@ -53,13 +55,17 @@ def line_follow_step(motors, readings, mark=0, *, sleep=time.sleep):
         if key in _LINE_TABLE:
             new_mark, kick_on_change, left, right, extra = _LINE_TABLE[key]
             if kick_on_change and mark != new_mark:
-                motors.motor_left(1, LEFT_BACKWARD, 80)
-                motors.motor_right(1, RIGHT_BACKWARD, 80)
+                backward_left = LEFT_FORWARD if DRIVE_DIRECTION_REVERSED else LEFT_BACKWARD
+                backward_right = RIGHT_FORWARD if DRIVE_DIRECTION_REVERSED else RIGHT_BACKWARD
+                motors.motor_left(1, backward_left, 80)
+                motors.motor_right(1, backward_right, 80)
                 sleep(0.03)
         else:
             left, right, extra = _LINE_LOST.get(mark, (80, 80, 0.0))
-        motors.motor_left(1, LEFT_FORWARD, left)
-        motors.motor_right(1, RIGHT_FORWARD, right)
+        forward_left = LEFT_BACKWARD if DRIVE_DIRECTION_REVERSED else LEFT_FORWARD
+        forward_right = RIGHT_BACKWARD if DRIVE_DIRECTION_REVERSED else RIGHT_FORWARD
+        motors.motor_left(1, forward_left, left)
+        motors.motor_right(1, forward_right, right)
         if extra:
             sleep(extra)
         sleep(0.1)
